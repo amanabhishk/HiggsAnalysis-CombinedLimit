@@ -646,33 +646,78 @@ void MultiDimFit::doGrid(RooAbsReal &nll)
 
 void MultiDimFit::doRandomPoints(RooAbsReal &nll) 
 {
-    double nll0 = nll.getVal();
-    for (unsigned int i = 0, n = poi_.size(); i < n; ++i) {
+    unsigned int n = poi_.size();
+    //if (poi_.size() > 2) throw std::logic_error("Don't know how to do a grid with more than 2 POIs.");
+    //double nll0 = nll.getVal();
+	std::cout<<"Dimension: "<<n<<std::endl;
+    std::vector<double> p0(n), pmin(n), pmax(n);
+    for (unsigned int i = 0; i < n; ++i) {
+        p0[i] = poiVars_[i]->getVal();
+        pmin[i] = poiVars_[i]->getMin();
+        pmax[i] = poiVars_[i]->getMax();
         poiVars_[i]->setConstant(true);
     }
 
     CascadeMinimizer minim(nll, CascadeMinimizer::Constrained);
     minim.setStrategy(minimizerStrategy_);
-    unsigned int n = poi_.size();
-    for (unsigned int j = 0; j < points_; ++j) {
-        for (unsigned int i = 0; i < n; ++i) {
-            poiVars_[i]->randomize();
-            poiVals_[i] = poiVars_[i]->getVal(); 
-        }
-        // now we minimize
-        {   
-            CloseCoutSentry sentry(verbose < 3);    
-            bool ok = minim.minimize(verbose-1);
-            if (ok) {
-                double qN = 2*(nll.getVal() - nll0);
-                double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
-		for(unsigned int j=0; j<specifiedNuis_.size(); j++){
-			specifiedVals_[j]=specifiedVars_[j]->getVal();
-		}
-                Combine::commitPoint(true, /*quantile=*/prob);
-            }
-        } 
+    
+    double x, temp;
+    int rand_sign = 1; 
+    unsigned int rand_index = 0;//, b = 0;
+    //bool ok;
+    
+    for(unsigned int k=0; k<points_; k++){
+    	
+    	do{
+    		rand_index = (unsigned int)(n*RooRandom::uniform());
+    			
+    		temp = RooRandom::uniform();
+    		if(temp>0.5) rand_sign = 1;
+    		else rand_sign = -1;
+
+    		x = poiVars_[rand_index]->getVal();
+    		x += 0.2*rand_sign*(pmax[rand_index]-pmin[rand_index]);
+
+    	}while(x>pmax[rand_index] || x<pmin[rand_index]);
+
+    	poiVals_[rand_index] = x;
+	  	poiVars_[rand_index]->setVal(x);
+		std::cout<<"("<<poiVars_[0]->getVal()<<","<<poiVars_[1]->getVal()<<")\n";
+
+		
+    	
+    	
+    	//ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true : minim.minimize(verbose-1);
+        //  if (true) {
+        //      deltaNLL_ = nll.getVal() - nll0;
+        //      double qN = 2*(deltaNLL_);
+        //      double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+        //      std::cout<<prob<<std::endl;
+	    //  	for(unsigned int j=0; j<specifiedNuis_.size(); j++){
+		//   		specifiedVals_[j]=specifiedVars_[j]->getVal();
+	    //  	}
+        //      Combine::commitPoint(true, /*quantile=*/prob);
+        //  }
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+    	
     }
+    	
+    
+    
+
+    
 }
 
 void MultiDimFit::doContour2D(RooAbsReal &nll) 
