@@ -662,11 +662,16 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
     //std::auto_ptr<RooArgSet> params(nll.getParameters((const RooArgSet *)0));
     //RooArgSet snap; params->snapshot(snap);
     
-    double x, temp;
+    double x, temp, deltaNLL_old = nll0;    
     int rand_sign = 1; 
     unsigned int rand_index = 0;
     bool ok;
-    
+    std::vector<double> step(n);
+
+
+    for(unsigned int q=0; q<n; q++){poiVals_[q] = pmin[q]; poiVars_[q]->setVal(pmin[q]);}
+    for(unsigned int i=0; i<n; i++) {step[i] = 0.05*(pmax[i]-pmin[i]);} 
+        
     for(unsigned int k=0; k<points_; k++){
     	
     	do{
@@ -677,23 +682,31 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
     		else rand_sign = -1;
 
     		x = poiVars_[rand_index]->getVal();
-   		x += 0.5*RooRandom::uniform()*rand_sign*(pmax[rand_index]-pmin[rand_index]);
+   		x += step[rand_index]*rand_sign;
 
     	}while(x>pmax[rand_index] || x<pmin[rand_index]);
 
     	//params = snap; 
     	poiVals_[rand_index] = x;
   	poiVars_[rand_index]->setVal(x);
+	CloseCoutSentry sentry(verbose<2);
     	
     	ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true : minim.minimize(verbose-1);
 	if (ok) {
 		deltaNLL_ = nll.getVal() - nll0;
+		//if(std::abs(deltaNLL_-deltaNLL_old)*100>std::abs(deltaNLL_old)*30){for(unsigned int z=0; z<n; z++){step[z] = 0.1*(pmax[z]-pmin[z]);}}
+ 		//else if(std::abs(deltaNLL_-deltaNLL_old)*100>std::abs(deltaNLL_old)*20){for(unsigned int z=0; z<n; z++){step[z] = 0.07*(pmax[z]-pmin[z]);}}  	
+		//else if(std::abs(deltaNLL_-deltaNLL_old)*100>std::abs(deltaNLL_old)*5){for(unsigned int z=0; z<n; z++){step[z] = 0.03*(pmax[z]-pmin[z]);}}
+		//else{for(unsigned int z=0; z<n; z++){step[z] = 0.02*(pmax[z]-pmin[z]);}}
+		//std::cout<<deltaNLL_<<", "<<nll0<<std::endl;
 		double qN = 2*(deltaNLL_);
 		double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
-		std::cout<<k<<"  "<<"("<<poiVars_[0]->getVal()<<","<<poiVars_[1]->getVal()<<")"<<": "<<qN<<"\n";
+		std::cout<<k<<"  "<<"("<<poiVars_[0]->getVal()<<","<<poiVars_[1]->getVal()<<")"<<": "<<qN<<"------"<<step[0]<<"\n";
 		for(unsigned int j=0; j<specifiedNuis_.size(); j++){
 			specifiedVals_[j]=specifiedVars_[j]->getVal();
+		
 	      	}
+		deltaNLL_old -= deltaNLL_;
 		Combine::commitPoint(true,prob);
 	}
     	
