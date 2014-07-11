@@ -659,8 +659,8 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 
     CascadeMinimizer minim(nll, CascadeMinimizer::Constrained);
     minim.setStrategy(minimizerStrategy_);
-    std::auto_ptr<RooArgSet> params(nll.getParameters((const RooArgSet *)0));
-    RooArgSet snap; params->snapshot(snap);
+    //std::auto_ptr<RooArgSet> params(nll.getParameters((const RooArgSet *)0));
+    //RooArgSet snap; params->snapshot(snap);
     
     double x, temp;
     int rand_sign = 1; 
@@ -677,11 +677,11 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
     		else rand_sign = -1;
 
     		x = poiVars_[rand_index]->getVal();
-   		x += 0.1*rand_sign*(pmax[rand_index]-pmin[rand_index]);
+   		x += 0.5*RooRandom::uniform()*rand_sign*(pmax[rand_index]-pmin[rand_index]);
 
     	}while(x>pmax[rand_index] || x<pmin[rand_index]);
 
-    	*params = snap; 
+    	//params = snap; 
     	poiVals_[rand_index] = x;
   	poiVars_[rand_index]->setVal(x);
     	
