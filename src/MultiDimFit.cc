@@ -647,9 +647,8 @@ void MultiDimFit::doGrid(RooAbsReal &nll)
 void MultiDimFit::doRandomPoints(RooAbsReal &nll) 
 {
     unsigned int n = poi_.size();
-    //if (poi_.size() > 2) throw std::logic_error("Don't know how to do a grid with more than 2 POIs.");
     double nll0 = nll.getVal();
-	std::cout<<"Dimension: "<<n<<std::endl;
+    std::cout<<"Dimension: "<<n<<std::endl;
     std::vector<double> p0(n), pmin(n), pmax(n);
     for (unsigned int i = 0; i < n; ++i) {
         p0[i] = poiVars_[i]->getVal();
@@ -665,7 +664,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
     
     double x, temp;
     int rand_sign = 1; 
-    unsigned int rand_index = 0;//, b = 0;
+    unsigned int rand_index = 0;
     bool ok;
     
     for(unsigned int k=0; k<points_; k++){
@@ -678,30 +677,25 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
     		else rand_sign = -1;
 
     		x = poiVars_[rand_index]->getVal();
-    		x += 0.2*rand_sign*(pmax[rand_index]-pmin[rand_index]);
+   		x += 0.1*rand_sign*(pmax[rand_index]-pmin[rand_index]);
 
     	}while(x>pmax[rand_index] || x<pmin[rand_index]);
 
     	*params = snap; 
     	poiVals_[rand_index] = x;
-	  	poiVars_[rand_index]->setVal(x);
-		//minim.minimize(verbose-1);
-
-		
-    	
+  	poiVars_[rand_index]->setVal(x);
     	
     	ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true : minim.minimize(verbose-1);
-          if (ok) {
-          		//std::cout<<"OK\n";
-              deltaNLL_ = nll.getVal() - nll0;
-              double qN = 2*(deltaNLL_);
-              double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
-              std::cout<<poiVars_[rand_index]->getVal()<<","<<qN<<"\n";//","<<poiVars_[1]->getVal()<<")\n";
-	      	for(unsigned int j=0; j<specifiedNuis_.size(); j++){
-		   		specifiedVals_[j]=specifiedVars_[j]->getVal();
+	if (ok) {
+		deltaNLL_ = nll.getVal() - nll0;
+		double qN = 2*(deltaNLL_);
+		double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+		std::cout<<k<<"  "<<"("<<poiVars_[0]->getVal()<<","<<poiVars_[1]->getVal()<<")"<<": "<<qN<<"\n";
+		for(unsigned int j=0; j<specifiedNuis_.size(); j++){
+			specifiedVals_[j]=specifiedVars_[j]->getVal();
 	      	}
-              Combine::commitPoint(true, /*quantile=*/prob);
-          }
+		Combine::commitPoint(true,prob);
+	}
     	
     	
     	   	
