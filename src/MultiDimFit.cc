@@ -646,33 +646,100 @@ void MultiDimFit::doGrid(RooAbsReal &nll)
 
 void MultiDimFit::doRandomPoints(RooAbsReal &nll) 
 {
+
+    bool ok;
+    unsigned int n = poi_.size();
+    //if (poi_.size() > 2) throw std::logic_error("Don't know how to do a grid with more than 2 POIs.");
     double nll0 = nll.getVal();
-    for (unsigned int i = 0, n = poi_.size(); i < n; ++i) {
+
+    std::vector<double> p0(n), pmin(n), pmax(n);
+    for (unsigned int i = 0; i < n; ++i) {
+        p0[i] = poiVars_[i]->getVal();
+        pmin[i] = poiVars_[i]->getMin();
+        pmax[i] = poiVars_[i]->getMax();
         poiVars_[i]->setConstant(true);
     }
 
     CascadeMinimizer minim(nll, CascadeMinimizer::Constrained);
     minim.setStrategy(minimizerStrategy_);
-    unsigned int n = poi_.size();
-    for (unsigned int j = 0; j < points_; ++j) {
-        for (unsigned int i = 0; i < n; ++i) {
-            poiVars_[i]->randomize();
-            poiVals_[i] = poiVars_[i]->getVal(); 
+    std::auto_ptr<RooArgSet> params(nll.getParameters((const RooArgSet *)0));
+    //RooArgSet snap; params->snapshot(snap);
+    
+        //std::vector<double> vars(n);
+    
+       
+    if (n==2){
+		
+	double x, y, ratio=(pmin[0]+pmax[0])/(pmin[1]+pmax[1]), level=nll0, preset_level = 2;
+	double points_y =(unsigned int)(pow(double(points_)/ratio,0.5));//takes care of identical spacing of points along both the axes.
+	double points_x = (unsigned int)(ratio*points_y);
+	std::cout<<"Assigning coordinates of the centre of the space to both variables: "; 
+	x = (pmin[0]+pmax[0])/2;
+	y = (pmin[1]+pmax[1])/2;
+
+	//CloseCoutSentry sentry(verbose<3);
+	//*params = snap;
+	poiVals_[0] = x; poiVals_[1] = y;
+	poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
+	
+	ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(0);
+	if (ok) {
+           level = nll.getVal() - nll0;
+           double qN = 2*(level);
+           double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+	   for(unsigned int j=0; j<specifiedNuis_.size(); j++){
+		specifiedVals_[j]=specifiedVars_[j]->getVal();
+	   }
+           Combine::commitPoint(true,prob);
         }
-        // now we minimize
-        {   
-            CloseCoutSentry sentry(verbose < 3);    
-            bool ok = minim.minimize(verbose-1);
-            if (ok) {
-                double qN = 2*(nll.getVal() - nll0);
-                double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
-		for(unsigned int j=0; j<specifiedNuis_.size(); j++){
+
+
+	
+	std::cout<<"("<<x<<","<<y<<") L="<<level<<std::endl;
+	std::cout<<points_x<<"x"<<points_y<<" grid.\n";
+	
+	bool run = true;
+	double level_prevStep = level;
+	double step_x = (pmin[0]+pmax[0])/double(points_x), step_y = (pmin[1]+pmax[1])/double(points_y);
+	std::cout<<"step_x: "<<step_x<<", step_y: "<<step_y<<std::endl;
+	for(int i=0; (i< points_x && run); i++){
+	    std::cout<<"Changing x to "<<x<<std::endl;
+	    x = fmod(x+step_x,pmin[0]+pmax[0]);
+	    for(int j=0; (j<points_y && run); j++){
+		y = fmod(y+step_y, pmin[1]+pmax[1]);
+		std::cout<<"y = "<<y<<std::endl;
+	    
+		//*params = snap;
+		poiVals_[0] = x; poiVals_[1] = y;
+		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
+		
+		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(0);
+		if (ok) {
+		   level = nll.getVal() - nll0;
+        	   double qN = 2*(level);
+           	   double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+	   	   for(unsigned int j=0; j<specifiedNuis_.size(); j++){
 			specifiedVals_[j]=specifiedVars_[j]->getVal();
-		}
-                Combine::commitPoint(true, /*quantile=*/prob);
-            }
-        } 
+	   	   }
+           	   Combine::commitPoint(true,prob);
+        	}
+		if((level-preset_level)*(level_prevStep-preset_level)<0) {run=false;std::cout<<"POINT FOUND.\n";}
+		std::cout<<"("<<x<<","<<y<<") L="<<level<<std::endl;
+	    }
+	}
+
+
+	
+
+
+
     }
+
+
+
+
+
+
 }
 
 void MultiDimFit::doContour2D(RooAbsReal &nll) 
