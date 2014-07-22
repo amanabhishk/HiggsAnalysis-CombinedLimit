@@ -670,7 +670,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
        
     if (n==2){
 		
-	double x, y, ratio=(pmin[0]+pmax[0])/(pmin[1]+pmax[1]), level=nll0, preset_level = 2;
+	double x, y, ratio=(-pmin[0]+pmax[0])/(-pmin[1]+pmax[1]), level=nll0, preset_level = 2;
 	double points_y =(unsigned int)(pow(double(points_)/ratio,0.5));//takes care of identical spacing of points along both the axes.
 	double points_x = (unsigned int)(ratio*points_y);
 	std::cout<<"Assigning coordinates of the centre of the space to both variables: "; 
@@ -699,14 +699,14 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	std::cout<<points_x<<"x"<<points_y<<" grid.\n";
 	
 	bool run = true;
-	double level_prevStep = level;
-	double step_x = (pmin[0]+pmax[0])/double(points_x), step_y = (pmin[1]+pmax[1])/double(points_y);
+	double level_prevStep = level, upLimit_likelihood = level;
+	double step_x = (-pmin[0]+pmax[0])/double(points_x), step_y = (-pmin[1]+pmax[1])/double(points_y);
 	std::cout<<"step_x: "<<step_x<<", step_y: "<<step_y<<std::endl;
 	for(int i=0; (i< points_x && run); i++){
 	    std::cout<<"Changing x to "<<x<<std::endl;
-	    x = fmod(x+step_x,pmin[0]+pmax[0]);
+	    x = pmin[0]+fmod(x+step_x-pmin[0],pmax[0]-pmin[0]);
 	    for(int j=0; (j<points_y && run); j++){
-		y = fmod(y+step_y, pmin[1]+pmax[1]);
+		y = pmin[1]+fmod(y+step_y-pmin[1], pmax[1]-pmin[1]);
 		std::cout<<"y = "<<y<<std::endl;
 	    
 		//*params = snap;
@@ -716,6 +716,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(0);
 		if (ok) {
 		   level = nll.getVal() - nll0;
+		   (upLimit_likelihood<level)? (upLimit_likelihood=level):true;
         	   double qN = 2*(level);
            	   double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
 	   	   for(unsigned int j=0; j<specifiedNuis_.size(); j++){
@@ -724,9 +725,16 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
            	   Combine::commitPoint(true,prob);
         	}
 		if((level-preset_level)*(level_prevStep-preset_level)<0) {run=false;std::cout<<"POINT FOUND.\n";}
-		std::cout<<"("<<x<<","<<y<<") L="<<level<<std::endl;
+		//std::cout<<"("<<x<<","<<y<<") L="<<level<<std::endl<<"max: "<<upLimit_likelihood<<"\n";
+		std::cout<<y<<"\n";
 	    }
 	}
+	
+	//X_inc:x = pmin[0]+fmod(x+step_x-pmin[0],pmax[0]-pmin[0]);
+	//X_dec:x = pmin[0]+fmod(x-step_x-pmin[0],pmax[0]-pmin[0]);
+	//Y_inc:y = pmin[1]+fmod(y+step_y-pmin[1],pmax[1]-pmin[1]);
+	//Y_dec:y = pmin[1]+fmod(y-step_y-pmin[1],pmax[1]-pmin[1]);
+	
 
 
 	
