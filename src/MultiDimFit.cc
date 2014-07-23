@@ -715,7 +715,6 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	    x += 10*step_x;
 	    y = pmin[1]+step_y; 
 	}
-	//if(den==0){x=x_badcase; y=y_badcase;} else{x = num_x/den; y= num_y/den;}
 	if(den==0)  {
 	    std::cout<<"Did not find any point with likelihood<"<<preset_level<<", on scanning the grid. Proceeding from the centre of the space to look for the contour.\n";
 	    x=(pmin[0]+pmax[0])/2; 
@@ -725,7 +724,8 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	    x=num_x/den; 
 	    y=num_y/den;
 	}
-	
+	//if(den==0){x=x_badcase; y=y_badcase;} else{x = num_x/den; y= num_y/den;}
+
 	
 	//Evaluating the likelihood at the starting point, calculated from above.
 	poiVals_[0] = x; poiVals_[1] = y;
