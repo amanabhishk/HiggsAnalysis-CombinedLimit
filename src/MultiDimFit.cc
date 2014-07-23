@@ -1,6 +1,8 @@
 #include "../interface/MultiDimFit.h"
 #include <stdexcept>
 #include <cmath>
+#pragma GCC diagnostic ignored "-Wuninitialized"
+
 
 #include "TMath.h"
 #include "RooArgSet.h"
@@ -652,7 +654,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
     //if (poi_.size() > 2) throw std::logic_error("Don't know how to do a grid with more than 2 POIs.");
     double nll0 = nll.getVal();
 
-    std::vector<double> p0(n), pmin(n), pmax(n);
+    std::vector<double> p0(n), pmin(n,0), pmax(n,0);
     for (unsigned int i = 0; i < n; ++i) {
         p0[i] = poiVars_[i]->getVal();
         pmin[i] = poiVars_[i]->getMin();
@@ -670,15 +672,62 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
        
     if (n==2){
 		
-	double x, y, ratio=(-pmin[0]+pmax[0])/(-pmin[1]+pmax[1]), level=nll0, preset_level = 2;
+	double x, y; 
+	//double x_badcase, y_badcase, badcase_level=100000; 
+	double ratio=(-pmin[0]+pmax[0])/(-pmin[1]+pmax[1]), level=nll0, preset_level = 1;
 	double points_y =(unsigned int)(pow(double(points_)/ratio,0.5));//takes care of identical spacing of points along both the axes.
 	double points_x = (unsigned int)(ratio*points_y);
-	std::cout<<"Assigning coordinates of the centre of the space to both variables: "; 
-	x = (pmin[0]+pmax[0])/2;
-	y = (pmin[1]+pmax[1])/2;
-
-	//CloseCoutSentry sentry(verbose<3);
-	//*params = snap;
+	double step_x = (-pmin[0]+pmax[0])/double(points_x), step_y = (-pmin[1]+pmax[1])/double(points_y);
+	std::cout<<"step_x: "<<step_x<<", step_y: "<<step_y<<std::endl;
+	
+	//Evaluating likelihood on a sparse grid to find approximate centre of the contour, for branching of task in 4 quadrants.
+	x = pmin[0]+step_x;
+	y = pmin[1]+step_y;
+	std::cout<<"**********Evaluating grid points**********\n";
+	double num_x=0, num_y=0, den=0; 
+	while(x<pmax[0]){
+	    while(y<pmax[1]){
+		poiVals_[0] = x; poiVals_[1] = y;
+		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
+	
+		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(0);
+		if (ok) {
+           	    level = nll.getVal() - nll0;
+	            double qN = 2*(level);
+         	    double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+	   	    for(unsigned int j=0; j<specifiedNuis_.size(); j++){
+			specifiedVals_[j]=specifiedVars_[j]->getVal();
+	   	    }
+           	    Combine::commitPoint(true,prob);
+        	}
+		y += 10*step_y; 
+		std::cout<<"("<<x<<","<<y<<") L="<<level<<std::endl;
+		//if(badcase_level>level){badcase_level=level; x_badcase = x; y_badcase = y;}
+		if(level<preset_level){
+		    
+		    num_x += x;
+		    num_y += y;
+		    den++;
+		    std::cout<<"Point accepted.\n"<<"X: "<<num_x<<"/"<<den<<"  Y: "<<num_y<<"/"<<den<<"\n";
+		}
+		
+	    }
+	    x += 10*step_x;
+	    y = pmin[1]+step_y; 
+	}
+	//if(den==0){x=x_badcase; y=y_badcase;} else{x = num_x/den; y= num_y/den;}
+	if(den==0)  {
+	    std::cout<<"Did not find any point with likelihood<"<<preset_level<<", on scanning the grid. Proceeding from the centre of the space to look for the contour.\n";
+	    x=(pmin[0]+pmax[0])/2; 
+	    y=(pmin[1]+pmax[1])/2;
+	} 
+	else {
+	    x=num_x/den; 
+	    y=num_y/den;
+	}
+	
+	
+	//Evaluating the likelihood at the starting point, calculated from above.
 	poiVals_[0] = x; poiVals_[1] = y;
 	poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
 	
@@ -693,24 +742,20 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
            Combine::commitPoint(true,prob);
         }
 
-
+	std::cout<<"**********INITIAL POINT: ("<<x<<","<<y<<")L= "<<level<<"**********\n";
 	
-	std::cout<<"("<<x<<","<<y<<") L="<<level<<std::endl;
-	std::cout<<points_x<<"x"<<points_y<<" grid.\n";
-	
+	//Moving outwards to touch the contour.
+	std::cout<<"**********Moving outwards to find the contour.**********\n"; 
 	bool run = true;
 	double level_prevStep = level, upLimit_likelihood = level;
-	double step_x = (-pmin[0]+pmax[0])/double(points_x), step_y = (-pmin[1]+pmax[1])/double(points_y);
-	std::cout<<"step_x: "<<step_x<<", step_y: "<<step_y<<std::endl;
+
 	for(int i=0; (i< points_x && run); i++){
 	    std::cout<<"Changing x to "<<x<<std::endl;
 	    x = pmin[0]+fmod(x+step_x-pmin[0],pmax[0]-pmin[0]);
 	    for(int j=0; (j<points_y && run); j++){
 		y = pmin[1]+fmod(y+step_y-pmin[1], pmax[1]-pmin[1]);
 		std::cout<<"y = "<<y<<std::endl;
-	    
-		//*params = snap;
-		poiVals_[0] = x; poiVals_[1] = y;
+	    poiVals_[0] = x; poiVals_[1] = y;
 		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
 		
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(0);
@@ -724,9 +769,9 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	   	   }
            	   Combine::commitPoint(true,prob);
         	}
-		if((level-preset_level)*(level_prevStep-preset_level)<0) {run=false;std::cout<<"POINT FOUND.\n";}
+		if((level-preset_level)*(level_prevStep-preset_level)<0) {run=false;std::cout<<"POINT FOUND. L="<<level<<"\n";}
 		//std::cout<<"("<<x<<","<<y<<") L="<<level<<std::endl<<"max: "<<upLimit_likelihood<<"\n";
-		std::cout<<y<<"\n";
+		
 	    }
 	}
 	
