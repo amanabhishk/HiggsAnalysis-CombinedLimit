@@ -654,7 +654,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
     //if (poi_.size() > 2) throw std::logic_error("Don't know how to do a grid with more than 2 POIs.");
     double nll0 = nll.getVal();
 
-    std::vector<double> p0(n), pmin(n,0), pmax(n,0);
+    std::vector<double> p0(n), pmin(n), pmax(n);
     for (unsigned int i = 0; i < n; ++i) {
         p0[i] = poiVars_[i]->getVal();
         pmin[i] = poiVars_[i]->getMin();
@@ -665,7 +665,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
     CascadeMinimizer minim(nll, CascadeMinimizer::Constrained);
     minim.setStrategy(minimizerStrategy_);
     std::auto_ptr<RooArgSet> params(nll.getParameters((const RooArgSet *)0));
-    //RooArgSet snap; params->snapshot(snap);
+    RooArgSet snap; params->snapshot(snap);
     
         //std::vector<double> vars(n);
     
@@ -687,6 +687,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	double num_x=0, num_y=0, den=0; 
 	while(x<pmax[0]){
 	    while(y<pmax[1]){
+		*params = snap;
 		poiVals_[0] = x; poiVals_[1] = y;
 		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
 	
@@ -728,6 +729,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 
 	
 	//Evaluating the likelihood at the starting point, calculated from above.
+	*params = snap;
 	poiVals_[0] = x; poiVals_[1] = y;
 	poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
 	
@@ -755,10 +757,11 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	    for(int j=0; (j<points_y && run); j++){
 		y = pmin[1]+fmod(y+step_y-pmin[1], pmax[1]-pmin[1]);
 		std::cout<<"y = "<<y<<std::endl;
+	    *params = snap;
 	    poiVals_[0] = x; poiVals_[1] = y;
 		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
 		
-		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(0);
+		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
 		   level = nll.getVal() - nll0;
 		   (upLimit_likelihood<level)? (upLimit_likelihood=level):true;
