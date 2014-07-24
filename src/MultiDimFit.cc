@@ -665,7 +665,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
     CascadeMinimizer minim(nll, CascadeMinimizer::Constrained);
     minim.setStrategy(minimizerStrategy_);
     std::auto_ptr<RooArgSet> params(nll.getParameters((const RooArgSet *)0));
-    RooArgSet snap; params->snapshot(snap);
+    //RooArgSet snap; params->snapshot(snap);
     
         //std::vector<double> vars(n);
     
@@ -673,8 +673,9 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
     if (n==2){
 		
 	double x, y; 
-	//double x_badcase, y_badcase, badcase_level=100000; 
-	double ratio=(-pmin[0]+pmax[0])/(-pmin[1]+pmax[1]), level=nll0, preset_level = 1;
+	double x_badcase=(pmax[0]+pmin[0])/2, y_badcase=(pmax[1]+pmin[1])/2, badcase_level=100000; 
+	double ratio=(-pmin[0]+pmax[0])/(-pmin[1]+pmax[1]); 
+	float preset_level = 1;
 	double points_y =(unsigned int)(pow(double(points_)/ratio,0.5));//takes care of identical spacing of points along both the axes.
 	double points_x = (unsigned int)(ratio*points_y);
 	double step_x = (-pmin[0]+pmax[0])/double(points_x), step_y = (-pmin[1]+pmax[1])/double(points_y);
@@ -687,24 +688,24 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	double num_x=0, num_y=0, den=0; 
 	while(x<pmax[0]){
 	    while(y<pmax[1]){
-		*params = snap;
+		//*params = snap;
 		poiVals_[0] = x; poiVals_[1] = y;
 		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
 	
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(0);
 		if (ok) {
-           	    level = nll.getVal() - nll0;
-	            double qN = 2*(level);
-         	    double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+			deltaNLL_ = nll.getVal() - nll0;
+			double qN = 2*(deltaNLL_);
+         	double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
 	   	    for(unsigned int j=0; j<specifiedNuis_.size(); j++){
-			specifiedVals_[j]=specifiedVars_[j]->getVal();
+				specifiedVals_[j]=specifiedVars_[j]->getVal();
 	   	    }
-           	    Combine::commitPoint(true,prob);
+           	Combine::commitPoint(true,prob);
         	}
 		y += 10*step_y; 
-		std::cout<<"("<<x<<","<<y<<") L="<<level<<std::endl;
-		//if(badcase_level>level){badcase_level=level; x_badcase = x; y_badcase = y;}
-		if(level<preset_level){
+		std::cout<<"("<<x<<","<<y<<") L="<<deltaNLL_<<std::endl;
+		if(badcase_level>deltaNLL_){badcase_level=deltaNLL_; x_badcase = x; y_badcase = y;std::cout<<badcase_level<<std::endl;}
+		if(deltaNLL_<preset_level){
 		    
 		    num_x += x;
 		    num_y += y;
@@ -717,9 +718,10 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	    y = pmin[1]+step_y; 
 	}
 	if(den==0)  {
-	    std::cout<<"Did not find any point with likelihood<"<<preset_level<<", on scanning the grid. Proceeding from the centre of the space to look for the contour.\n";
-	    x=(pmin[0]+pmax[0])/2; 
-	    y=(pmin[1]+pmax[1])/2;
+	    std::cout<<"Did not find any point with likelihood<"<<preset_level<<", on scanning the grid.\n";
+	    //x=(pmin[0]+pmax[0])/2; 
+	    //y=(pmin[1]+pmax[1])/2;
+	    //x=x_badcase; y=y_badcase;
 	} 
 	else {
 	    x=num_x/den; 
@@ -729,14 +731,14 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 
 	
 	//Evaluating the likelihood at the starting point, calculated from above.
-	*params = snap;
+	//*params = snap;
 	poiVals_[0] = x; poiVals_[1] = y;
 	poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
 	
 	ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(0);
 	if (ok) {
-           level = nll.getVal() - nll0;
-           double qN = 2*(level);
+           deltaNLL_ = nll.getVal() - nll0;
+           double qN = 2*(deltaNLL_);
            double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
 	   for(unsigned int j=0; j<specifiedNuis_.size(); j++){
 		specifiedVals_[j]=specifiedVars_[j]->getVal();
@@ -744,35 +746,40 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
            Combine::commitPoint(true,prob);
         }
 
-	std::cout<<"**********INITIAL POINT: ("<<x<<","<<y<<")L= "<<level<<"**********\n";
+	if(preset_level<deltaNLL_ || den==0){
+		std::cout<<"Using badcase. L="<<badcase_level;
+		x=x_badcase; y=y_badcase;
+	}
+	std::cout<<"**********INITIAL POINT: ("<<x<<","<<y<<")L= "<<deltaNLL_<<"**********\n";
 	
 	//Moving outwards to touch the contour.
 	std::cout<<"**********Moving outwards to find the contour.**********\n"; 
 	bool run = true;
-	double level_prevStep = level, upLimit_likelihood = level;
+	float level_prevStep = deltaNLL_, upLimit_likelihood = deltaNLL_;
 
 	for(int i=0; (i< points_x && run); i++){
+	    
 	    std::cout<<"Changing x to "<<x<<std::endl;
 	    x = pmin[0]+fmod(x+step_x-pmin[0],pmax[0]-pmin[0]);
 	    for(int j=0; (j<points_y && run); j++){
 		y = pmin[1]+fmod(y+step_y-pmin[1], pmax[1]-pmin[1]);
 		std::cout<<"y = "<<y<<std::endl;
-	    *params = snap;
+	    //*params = snap;
 	    poiVals_[0] = x; poiVals_[1] = y;
 		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
 		
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
-		   level = nll.getVal() - nll0;
-		   (upLimit_likelihood<level)? (upLimit_likelihood=level):true;
-        	   double qN = 2*(level);
+		   deltaNLL_ = nll.getVal() - nll0;
+		   (upLimit_likelihood<deltaNLL_)? (upLimit_likelihood=deltaNLL_):true;
+        	   double qN = 2*(deltaNLL_);
            	   double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
 	   	   for(unsigned int j=0; j<specifiedNuis_.size(); j++){
 			specifiedVals_[j]=specifiedVars_[j]->getVal();
 	   	   }
            	   Combine::commitPoint(true,prob);
         	}
-		if((level-preset_level)*(level_prevStep-preset_level)<0) {run=false;std::cout<<"POINT FOUND. L="<<level<<"\n";}
+		if((deltaNLL_-preset_level)*(level_prevStep-preset_level)<0) {run=false;std::cout<<"POINT FOUND. L="<<deltaNLL_<<"\n";}
 		//std::cout<<"("<<x<<","<<y<<") L="<<level<<std::endl<<"max: "<<upLimit_likelihood<<"\n";
 		
 	    }
