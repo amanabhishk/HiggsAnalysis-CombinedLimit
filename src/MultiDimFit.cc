@@ -681,13 +681,18 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	
 	//std::cout<<"**********Evaluating grid points**********\n";
 	unsigned int count=0, total_count=0;
-	double k=1;
 	bool stop=true;
 	while(total_count<points_){
 	
 	double num_x=0, num_y=0, den=0; 
 	x = x1;
 	y = y1;
+	ratio=(-x1+x2)/(-y1+y2); 
+	points_y =(unsigned int)(pow(double(points_/5)/ratio,0.5));
+	points_x = (unsigned int)(ratio*points_y);
+	step_x = (x2-x1)/double(points_x), step_y = (y2-y1)/double(points_y);
+
+	
 	std::cout<<"x: "<<x<<std::endl;
 	std::cout<<"("<<x1<<","<<x2<<")"<<std::endl;
 	std::cout<<"y: "<<y<<std::endl;
@@ -718,10 +723,10 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 		    num_y += y;
 		    den++;
 		}
-		y += step_y/k;
+		y += step_y;
 	    }
 	    y = y1;
-	    x += step_x/k; 
+	    x += step_x; 
 	}
 	if(den==0)  {std::cout<<"Did not find any point with likelihood<"<<preset_level<<", on scanning the grid.\n";} 
 	else {
@@ -750,7 +755,6 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	
 	
 	double X1=x1,X2=x2,Y1=y1,Y2=y2;		
-	k += 0.5;
 	x1 = x-(X2-X1)/3;
 	if(x1<pmin[0])x1=pmin[0];
 	x2 = x+(X2-X1)/3;
