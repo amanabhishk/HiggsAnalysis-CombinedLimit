@@ -672,9 +672,10 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
        
     if (n==2){
 		
-	double x, y; 
+	double x=(pmin[0]+pmax[0])/2, y=(pmin[1]+pmax[1])/2; 
 	double x_badcase=(pmax[0]+pmin[0])/2, y_badcase=(pmax[1]+pmin[1])/2, badcase_level=100000; 
 	double ratio=(-pmin[0]+pmax[0])/(-pmin[1]+pmax[1]); 
+	double x1 = pmin[0], x2=pmax[0], y1=pmin[1], y2=pmax[1];
 	float preset_level = 1;
 	double points_y =(unsigned int)(pow(double(points_)/ratio,0.5));//takes care of identical spacing of points along both the axes.
 	double points_x = (unsigned int)(ratio*points_y);
@@ -682,12 +683,22 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	std::cout<<"step_x: "<<step_x<<", step_y: "<<step_y<<std::endl;
 	
 	//Evaluating likelihood on a sparse grid to find approximate centre of the contour, for branching of task in 4 quadrants.
-	x = pmin[0]+step_x;
-	y = pmin[1]+step_y;
+
 	std::cout<<"**********Evaluating grid points**********\n";
+	int count=0;
+	double k=1;
+	for(int i=0; i<3; i++){
+	
 	double num_x=0, num_y=0, den=0; 
-	while(x<pmax[0]){
-	    while(y<pmax[1]){
+	x = x1;
+	y = y1;
+	std::cout<<"Centre_x: "<<x<<std::endl;
+	std::cout<<"("<<x1<<","<<x2<<")"<<std::endl;
+	std::cout<<"Centre_y: "<<y<<std::endl;
+	std::cout<<"("<<y1<<","<<y2<<")"<<std::endl;
+	while(x<x2){
+	    while(y<y2){
+		count++;
 		//*params = snap;
 		poiVals_[0] = x; poiVals_[1] = y;
 		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
@@ -702,36 +713,24 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	   	    }
            	Combine::commitPoint(true,prob);
         	}
-		y += 10*step_y; 
-		std::cout<<"("<<x<<","<<y<<") L="<<deltaNLL_<<std::endl;
-		if(badcase_level>deltaNLL_){badcase_level=deltaNLL_; x_badcase = x; y_badcase = y;std::cout<<badcase_level<<std::endl;}
+		//std::cout<<"("<<x<<","<<y<<") L="<<deltaNLL_<<std::endl;
+		if(badcase_level>deltaNLL_){badcase_level=deltaNLL_; x_badcase = x; y_badcase = y;}//std::cout<<badcase_level<<std::endl;
 		if(deltaNLL_<preset_level){
-		    
 		    num_x += x;
 		    num_y += y;
 		    den++;
-		    std::cout<<"Point accepted.\n"<<"X: "<<num_x<<"/"<<den<<"  Y: "<<num_y<<"/"<<den<<"\n";
 		}
-		
+		y += step_y/k;
 	    }
-	    x += 10*step_x;
-	    y = pmin[1]+step_y; 
+	    y = y1;
+	    x += step_x/k; 
 	}
-	if(den==0)  {
-	    std::cout<<"Did not find any point with likelihood<"<<preset_level<<", on scanning the grid.\n";
-	    //x=(pmin[0]+pmax[0])/2; 
-	    //y=(pmin[1]+pmax[1])/2;
-	    //x=x_badcase; y=y_badcase;
-	} 
+	if(den==0)  {std::cout<<"Did not find any point with likelihood<"<<preset_level<<", on scanning the grid.\n";} 
 	else {
 	    x=num_x/den; 
 	    y=num_y/den;
 	}
-	//if(den==0){x=x_badcase; y=y_badcase;} else{x = num_x/den; y= num_y/den;}
 
-	
-	//Evaluating the likelihood at the starting point, calculated from above.
-	//*params = snap;
 	poiVals_[0] = x; poiVals_[1] = y;
 	poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
 	
@@ -750,54 +749,24 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 		std::cout<<"Using badcase. L="<<badcase_level;
 		x=x_badcase; y=y_badcase;
 	}
-	std::cout<<"**********INITIAL POINT: ("<<x<<","<<y<<")L= "<<deltaNLL_<<"**********\n";
 	
-	//Moving outwards to touch the contour.
-	std::cout<<"**********Moving outwards to find the contour.**********\n"; 
-	bool run = true;
-	float level_prevStep = deltaNLL_, upLimit_likelihood = deltaNLL_;
-
-	for(int i=0; (i< points_x && run); i++){
-	    
-	    std::cout<<"Changing x to "<<x<<std::endl;
-	    x = pmin[0]+fmod(x+step_x-pmin[0],pmax[0]-pmin[0]);
-	    for(int j=0; (j<points_y && run); j++){
-		y = pmin[1]+fmod(y+step_y-pmin[1], pmax[1]-pmin[1]);
-		std::cout<<"y = "<<y<<std::endl;
-	    //*params = snap;
-	    poiVals_[0] = x; poiVals_[1] = y;
-		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
+	
+	k += 0.5;
 		
-		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
-		if (ok) {
-		   deltaNLL_ = nll.getVal() - nll0;
-		   (upLimit_likelihood<deltaNLL_)? (upLimit_likelihood=deltaNLL_):true;
-        	   double qN = 2*(deltaNLL_);
-           	   double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
-	   	   for(unsigned int j=0; j<specifiedNuis_.size(); j++){
-			specifiedVals_[j]=specifiedVars_[j]->getVal();
-	   	   }
-           	   Combine::commitPoint(true,prob);
-        	}
-		if((deltaNLL_-preset_level)*(level_prevStep-preset_level)<0) {run=false;std::cout<<"POINT FOUND. L="<<deltaNLL_<<"\n";}
-		//std::cout<<"("<<x<<","<<y<<") L="<<level<<std::endl<<"max: "<<upLimit_likelihood<<"\n";
-		
-	    }
-	}
-	
-	//X_inc:x = pmin[0]+fmod(x+step_x-pmin[0],pmax[0]-pmin[0]);
-	//X_dec:x = pmin[0]+fmod(x-step_x-pmin[0],pmax[0]-pmin[0]);
-	//Y_inc:y = pmin[1]+fmod(y+step_y-pmin[1],pmax[1]-pmin[1]);
-	//Y_dec:y = pmin[1]+fmod(y-step_y-pmin[1],pmax[1]-pmin[1]);
-	
+	x1 = x-(x2-x1)/2;
+	if(x1<pmin[0])x1=pmin[0];
+	x2 = x+(x2-x1)/2;
+	if(x2>pmax[0])x2=pmax[0];
+	y1 = y-(y2-y1)/2;
+	if(y1<pmin[1])y1=pmin[1];
+	y2 = y+(y2-y1)/2;
+	if(y2>pmax[1])y2=pmax[1];
+	std::cout<<"Points evaluated: "<<count<<std::endl;
+	count=0;
 
-
-	
-
-
-
-    }
-
+        
+}}
+    
 
 
 
