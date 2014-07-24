@@ -677,28 +677,28 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	double ratio=(-pmin[0]+pmax[0])/(-pmin[1]+pmax[1]); 
 	double x1 = pmin[0], x2=pmax[0], y1=pmin[1], y2=pmax[1];
 	float preset_level = 1;
-	double points_y =(unsigned int)(pow(double(points_)/ratio,0.5));//takes care of identical spacing of points along both the axes.
+	double points_y =(unsigned int)(pow(double(points_/5)/ratio,0.5));//takes care of identical spacing of points along both the axes.
 	double points_x = (unsigned int)(ratio*points_y);
 	double step_x = (-pmin[0]+pmax[0])/double(points_x), step_y = (-pmin[1]+pmax[1])/double(points_y);
-	std::cout<<"step_x: "<<step_x<<", step_y: "<<step_y<<std::endl;
+	//std::cout<<"step_x: "<<step_x<<", step_y: "<<step_y<<std::endl;
 	
-	//Evaluating likelihood on a sparse grid to find approximate centre of the contour, for branching of task in 4 quadrants.
-
 	std::cout<<"**********Evaluating grid points**********\n";
-	int count=0;
+	unsigned int count=0, total_count=0;
 	double k=1;
-	for(int i=0; i<3; i++){
+	while(total_count<points_){
 	
 	double num_x=0, num_y=0, den=0; 
 	x = x1;
 	y = y1;
-	std::cout<<"Centre_x: "<<x<<std::endl;
+	std::cout<<"x: "<<x<<std::endl;
 	std::cout<<"("<<x1<<","<<x2<<")"<<std::endl;
-	std::cout<<"Centre_y: "<<y<<std::endl;
+	std::cout<<"y: "<<y<<std::endl;
 	std::cout<<"("<<y1<<","<<y2<<")"<<std::endl;
 	while(x<x2){
 	    while(y<y2){
 		count++;
+		total_count++;
+		if(total_count>points_)goto get_out;
 		//*params = snap;
 		poiVals_[0] = x; poiVals_[1] = y;
 		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
@@ -761,11 +761,14 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	if(y1<pmin[1])y1=pmin[1];
 	y2 = y+(y2-y1)/2;
 	if(y2>pmax[1])y2=pmax[1];
+	get_out:
 	std::cout<<"Points evaluated: "<<count<<std::endl;
 	count=0;
 
         
-}}
+    	}	
+	
+    }
     
 
 
