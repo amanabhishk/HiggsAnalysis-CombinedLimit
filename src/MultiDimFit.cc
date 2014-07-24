@@ -665,9 +665,6 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
     CascadeMinimizer minim(nll, CascadeMinimizer::Constrained);
     minim.setStrategy(minimizerStrategy_);
     std::auto_ptr<RooArgSet> params(nll.getParameters((const RooArgSet *)0));
-    //RooArgSet snap; params->snapshot(snap);
-    
-        //std::vector<double> vars(n);
     
        
     if (n==2){
@@ -682,9 +679,10 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	double step_x = (-pmin[0]+pmax[0])/double(points_x), step_y = (-pmin[1]+pmax[1])/double(points_y);
 	//std::cout<<"step_x: "<<step_x<<", step_y: "<<step_y<<std::endl;
 	
-	std::cout<<"**********Evaluating grid points**********\n";
+	//std::cout<<"**********Evaluating grid points**********\n";
 	unsigned int count=0, total_count=0;
 	double k=1;
+	bool stop=true;
 	while(total_count<points_){
 	
 	double num_x=0, num_y=0, den=0; 
@@ -694,11 +692,11 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	std::cout<<"("<<x1<<","<<x2<<")"<<std::endl;
 	std::cout<<"y: "<<y<<std::endl;
 	std::cout<<"("<<y1<<","<<y2<<")"<<std::endl;
-	while(x<x2){
+	while(x<x2 && stop){
 	    while(y<y2){
 		count++;
 		total_count++;
-		if(total_count>points_)goto get_out;
+		if(total_count>points_){stop=false;break;}
 		//*params = snap;
 		poiVals_[0] = x; poiVals_[1] = y;
 		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
@@ -751,23 +749,23 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	}
 	
 	
+	double X1=x1,X2=x2,Y1=y1,Y2=y2;		
 	k += 0.5;
-		
-	x1 = x-(x2-x1)/2;
+	x1 = x-(X2-X1)/3;
 	if(x1<pmin[0])x1=pmin[0];
-	x2 = x+(x2-x1)/2;
+	x2 = x+(X2-X1)/3;
 	if(x2>pmax[0])x2=pmax[0];
-	y1 = y-(y2-y1)/2;
+	y1 = y-(Y2-Y1)/3;
 	if(y1<pmin[1])y1=pmin[1];
-	y2 = y+(y2-y1)/2;
+	y2 = y+(Y2-Y1)/3;
 	if(y2>pmax[1])y2=pmax[1];
-	get_out:
-	std::cout<<"Points evaluated: "<<count<<std::endl;
+	
+	std::cout<<"Points evaluated this round: "<<count<<std::endl;
 	count=0;
 
         
     	}	
-	
+	std::cout<<"Total points: "<<total_count<<std::endl;
     }
     
 
