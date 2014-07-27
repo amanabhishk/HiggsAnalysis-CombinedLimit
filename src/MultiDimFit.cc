@@ -672,130 +672,133 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
        
     if (n==2){
 		
-	double x, y; 
-	double x_badcase=(pmax[0]+pmin[0])/2, y_badcase=(pmax[1]+pmin[1])/2, badcase_level=100000; 
-	double ratio=(-pmin[0]+pmax[0])/(-pmin[1]+pmax[1]); 
-	float preset_level = 1;
-	double points_y =(unsigned int)(pow(double(points_)/ratio,0.5));//takes care of identical spacing of points along both the axes.
-	double points_x = (unsigned int)(ratio*points_y);
-	double step_x = (-pmin[0]+pmax[0])/double(points_x), step_y = (-pmin[1]+pmax[1])/double(points_y);
-	std::cout<<"step_x: "<<step_x<<", step_y: "<<step_y<<std::endl;
+	int cost=0;
+	double pi = 3.14159;
 	
-	//Evaluating likelihood on a sparse grid to find approximate centre of the contour, for branching of task in 4 quadrants.
-	x = pmin[0]+step_x;
-	y = pmin[1]+step_y;
-	std::cout<<"**********Evaluating grid points**********\n";
-	double num_x=0, num_y=0, den=0; 
-	while(x<pmax[0]){
-	    while(y<pmax[1]){
-		//*params = snap;
+	double set_level = 1, old_level=0, level = 0;
+	double step_y = 0.1;
+	double x0 = poiVars_[0]->getVal(), y0 = poiVars_[1]->getVal();
+	double x = x0, y = y0;
+	while(true){
+	
 		poiVals_[0] = x; poiVals_[1] = y;
 		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
-	
-		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(0);
+		double temp;
+		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
-			deltaNLL_ = nll.getVal() - nll0;
-			double qN = 2*(deltaNLL_);
-         	double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
-	   	    for(unsigned int j=0; j<specifiedNuis_.size(); j++){
-				specifiedVals_[j]=specifiedVars_[j]->getVal();
-	   	    }
-           	Combine::commitPoint(true,prob);
-        	}
-		y += 10*step_y; 
-		std::cout<<"("<<x<<","<<y<<") L="<<deltaNLL_<<std::endl;
-		if(badcase_level>deltaNLL_){badcase_level=deltaNLL_; x_badcase = x; y_badcase = y;std::cout<<badcase_level<<std::endl;}
-		if(deltaNLL_<preset_level){
-		    
-		    num_x += x;
-		    num_y += y;
-		    den++;
-		    std::cout<<"Point accepted.\n"<<"X: "<<num_x<<"/"<<den<<"  Y: "<<num_y<<"/"<<den<<"\n";
-		}
-		
-	    }
-	    x += 10*step_x;
-	    y = pmin[1]+step_y; 
-	}
-	if(den==0)  {
-	    std::cout<<"Did not find any point with likelihood<"<<preset_level<<", on scanning the grid.\n";
-	    //x=(pmin[0]+pmax[0])/2; 
-	    //y=(pmin[1]+pmax[1])/2;
-	    //x=x_badcase; y=y_badcase;
-	} 
-	else {
-	    x=num_x/den; 
-	    y=num_y/den;
-	}
-	//if(den==0){x=x_badcase; y=y_badcase;} else{x = num_x/den; y= num_y/den;}
-
-	
-	//Evaluating the likelihood at the starting point, calculated from above.
-	//*params = snap;
-	poiVals_[0] = x; poiVals_[1] = y;
-	poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
-	
-	ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(0);
-	if (ok) {
-           deltaNLL_ = nll.getVal() - nll0;
-           double qN = 2*(deltaNLL_);
-           double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
-	   for(unsigned int j=0; j<specifiedNuis_.size(); j++){
-		specifiedVals_[j]=specifiedVars_[j]->getVal();
-	   }
-           Combine::commitPoint(true,prob);
+		   cost++;
+		   temp = nll.getVal() - nll0;
+		   //(upLimit_likelihood<deltaNLL_)? (upLimit_likelihood=deltaNLL_):true;
+        	   double qN = 2*(temp);
+           	   double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+	   	   for(unsigned int j=0; j<specifiedNuis_.size(); j++){
+			specifiedVals_[j]=specifiedVars_[j]->getVal();
+	   	   }
+           	   Combine::commitPoint(true,prob);
         }
-
-	if(preset_level<deltaNLL_ || den==0){
-		std::cout<<"Using badcase. L="<<badcase_level;
-		x=x_badcase; y=y_badcase;
+		
+		level = temp;
+		std::cout<<y<<","<<level<<std::endl;
+		if((old_level-set_level)*(level-set_level)<0){ 
+			std::cout<<"Found the surface.\n";
+			break;
+		}
+		// x += step_x;
+		y -= step_y;
+		old_level=level;
+		
 	}
-	std::cout<<"**********INITIAL POINT: ("<<x<<","<<y<<")L= "<<deltaNLL_<<"**********\n";
-	
-	//Moving outwards to touch the contour.
-	std::cout<<"**********Moving outwards to find the contour.**********\n"; 
-	bool run = true;
-	float level_prevStep = deltaNLL_, upLimit_likelihood = deltaNLL_;
 
-	for(int i=0; (i< points_x && run); i++){
-	    
-	    std::cout<<"Changing x to "<<x<<std::endl;
-	    x = pmin[0]+fmod(x+step_x-pmin[0],pmax[0]-pmin[0]);
-	    for(int j=0; (j<points_y && run); j++){
-		y = pmin[1]+fmod(y+step_y-pmin[1], pmax[1]-pmin[1]);
-		std::cout<<"y = "<<y<<std::endl;
-	    //*params = snap;
-	    poiVals_[0] = x; poiVals_[1] = y;
-		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
+/****************************************STARTING SCAN*********************************************************/
+	cost = 0;
+	double slope, slope_old = -999999999, theta, l=0.25;
+	double x1, y1, z1, x2, y2, z2, X, Y;
+	double alpha=pi/4;
+	int t=1;
+	x += 0.5;
+	poiVals_[0] = x;
+	poiVars_[0]->setVal(x);
+	
+	while((x-x0)>0){
+		slope = (y-y0)/(x-x0);
+		theta = atan(slope);
+		// std::cout<<"\n***********\ntheta "<<theta<<std::endl;
+		x1 = x - l*cos(theta- alpha);
+		y1 = y - l*sin(theta-alpha);
+		poiVals_[0] = x1; poiVals_[1] = y1;
+		poiVars_[0]->setVal(x1); poiVars_[1]->setVal(y1);
+		
 		
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
+		   cost++;
 		   deltaNLL_ = nll.getVal() - nll0;
-		   (upLimit_likelihood<deltaNLL_)? (upLimit_likelihood=deltaNLL_):true;
+		   //(upLimit_likelihood<deltaNLL_)? (upLimit_likelihood=deltaNLL_):true;
+           double qN = 2*(deltaNLL_);
+           double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+	   	   for(unsigned int j=0; j<specifiedNuis_.size(); j++){
+			specifiedVals_[j]=specifiedVars_[j]->getVal();
+	   	   }
+           	   Combine::commitPoint(true,prob);
+        }
+		
+		z1 = deltaNLL_-set_level;
+
+
+		x2 = x + l*cos(theta+alpha);
+		y2 = y + l*sin(theta+ alpha);
+		
+		poiVals_[0] = x2; poiVals_[1] = y2;
+		poiVars_[0]->setVal(x2); poiVars_[1]->setVal(y2);
+		
+		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
+		if (ok) {
+		   cost++;
+		   deltaNLL_ = nll.getVal() - nll0;
+		   //(upLimit_likelihood<deltaNLL_)? (upLimit_likelihood=deltaNLL_):true;
         	   double qN = 2*(deltaNLL_);
            	   double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
 	   	   for(unsigned int j=0; j<specifiedNuis_.size(); j++){
 			specifiedVals_[j]=specifiedVars_[j]->getVal();
 	   	   }
            	   Combine::commitPoint(true,prob);
-        	}
-		if((deltaNLL_-preset_level)*(level_prevStep-preset_level)<0) {run=false;std::cout<<"POINT FOUND. L="<<deltaNLL_<<"\n";}
-		//std::cout<<"("<<x<<","<<y<<") L="<<level<<std::endl<<"max: "<<upLimit_likelihood<<"\n";
+        }
 		
-	    }
+	
+		z2 = deltaNLL_- set_level;
+		// std::cout<<"Z:"<<setw(8)<<z1<<","<<setw(8)<<z2<<std::endl;
+
+		// if(z1*z2>0)std::cout<<"Same sign\n";
+
+		X = x1+(x2-x1)*z1/(z1-z2);
+		Y = y1 +(y2-y1)*z1/(z1-z2);
+
+		if(slope_old<slope){
+			x = X;
+			y = Y;
+			// std::cout<<x<<",";
+			std::cout<<y<<",";
+			// std::cout<<setw(3)<<"x: "<<setw(8)<<x<<","<<setw(8)<<y<<std::endl;
+			// std::cout<<setw(3)<<"x1: "<<setw(8)<<x1<<","<<setw(8)<<y1<<std::endl;
+			// std::cout<<setw(3)<<"x2: "<<setw(8)<<x2<<","<<setw(8)<<y2<<std::endl;
+		}
+
+		
+		else {
+			std::cout<<"Disaster.\n";
+			// alpha += 0.1;
+			//exit(0);
+		}
+		slope_old=slope;
+		t += 3;
+
+		if((x-x0)<0)std::cout<<"While loop break\n";
 	}
+	std::cout<<"Cost:"<<cost<<"/"<<t<<std::endl;
 	
-	//X_inc:x = pmin[0]+fmod(x+step_x-pmin[0],pmax[0]-pmin[0]);
-	//X_dec:x = pmin[0]+fmod(x-step_x-pmin[0],pmax[0]-pmin[0]);
-	//Y_inc:y = pmin[1]+fmod(y+step_y-pmin[1],pmax[1]-pmin[1]);
-	//Y_dec:y = pmin[1]+fmod(y-step_y-pmin[1],pmax[1]-pmin[1]);
 	
-
-
 	
-
-
-
+	
     }
 
 
