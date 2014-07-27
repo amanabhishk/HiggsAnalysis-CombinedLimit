@@ -672,22 +672,23 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
        
     if (n==2){
 		
-	int cost=0;
+	
 	const double pi = 3.14159;
 	
-	double set_level = 1, old_level=0, level = 0;
-	double step_y = 0.1;
-	const double x0 = poiVars_[0]->getVal(), y0 = poiVars_[1]->getVal();
+	double set_level = 1, old_level=0, level = 0; //LEVEL SHOULD BE SET BY THE USER (set_level)
+	double step_y = pow((pmax[0]-pmin[0])*(pmax[1]-pmin[1])/double(points_),0.5);
+	const double x0 = poiVars_[0]->getVal(), y0 = poiVars_[1]->getVal(); //USER SPECIFIED, in case of problems
 	double x = x0, y = y0;
-	
-	while(true){
+	std::cout<<"Starting from ("<<x0<<","<<y0<<"), moving outwards to touch contour."<<std::endl;	
+		
+	while(false){
 	
 		poiVals_[0] = x; poiVals_[1] = y;
 		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
-		double temp;
+		double temp = 0;
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
-		   cost++;
+		   //cost++;
 		   temp = nll.getVal() - nll0;
 		   //(upLimit_likelihood<deltaNLL_)? (upLimit_likelihood=deltaNLL_):true;
         	   double qN = 2*(temp);
@@ -699,7 +700,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
         }
 		
 		level = temp;
-		std::cout<<y<<","<<level<<std::endl;
+		//std::cout<<y<<","<<level<<std::endl;
 		if((old_level-set_level)*(level-set_level)<0){ 
 			std::cout<<"Found the surface.\n";
 			break;
@@ -712,34 +713,36 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	
 	const double x_start = x, y_start = y;
 
-	cost = 0;
-	double slope, slope_old, theta, l=0.1;
+	int cost1=0, cost2=0;
+	double slope, slope_old, theta, l=step_y;//USER SPECIFIED PROBE LENGTH SHOULD BE ADDED
+	
 	double x1, y1, z1, x2, y2, z2, X, Y;
-	double alpha=pi/4;
-	int t=1;
-	std::cout<<"Starting point:"<<x_start<<","<<y_start<<std::endl;
-	std::cout<<"Centre:"<<x0<<","<<y0<<std::endl;	
+	double alpha=pi/4;							//USER SPECIFIED PROBE ANGLE SHOULD BE ADDED. Remember to notify user where the angle is measured from.
+	
+	std::cout<<"Touched countour at ("<<x_start<<","<<y_start<<")"<<std::endl;
+	std::cout<<"Probe length being used: "<<l<<". Decrease granularity to decrease probe length if this is too small."<<std::endl;
 
-/****************************************STARTING SCAN  1*********************************************************/
+/****************************************Clockwise scan, upper semicircle*********************************************************/
 	slope_old = -999999999;
-	x = x_start+0.000001;
+	x = x_start+0.000001*step_y;
 	y = y_start;
+	std::cout<<"Starting clockwise scan in the upper semicircle region.\n";
 	//poiVals_[0] = x;
 	//poiVars_[0]->setVal(x);
 	
-	while((x-x0)>0){
+	while(false){
 		slope = (y-y0)/(x-x0);
 		theta = atan(slope);
-		std::cout<<"\n***********\n"<<std::endl;
+		//std::cout<<"\n***********\n"<<std::endl;
 		x1 = x - l*cos(theta- alpha);
 		y1 = y - l*sin(theta-alpha);
 		poiVals_[0] = x1; poiVals_[1] = y1;
 		poiVars_[0]->setVal(x1); poiVars_[1]->setVal(y1);
-		std::cout<<x1<<","<<y1<<std::endl;
+		//std::cout<<x1<<","<<y1<<std::endl;
 		
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
-		   cost++;
+		   cost1++;
 		   deltaNLL_ = nll.getVal() - nll0;
 		   //(upLimit_likelihood<deltaNLL_)? (upLimit_likelihood=deltaNLL_):true;
            double qN = 2*(deltaNLL_);
@@ -757,11 +760,11 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 		y2 = y + l*sin(theta+ alpha);
 		poiVals_[0] = x2; poiVals_[1] = y2;
 		poiVars_[0]->setVal(x2); poiVars_[1]->setVal(y2);
-		std::cout<<x2<<","<<y2<<std::endl;
+		//std::cout<<x2<<","<<y2<<std::endl;
 		
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
-		   cost++;
+		   cost1++;
 		   deltaNLL_ = nll.getVal() - nll0;
 		   //(upLimit_likelihood<deltaNLL_)? (upLimit_likelihood=deltaNLL_):true;
         	   double qN = 2*(deltaNLL_);
@@ -774,7 +777,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 		
 	
 		z2 = deltaNLL_- set_level;
-		std::cout<<"Z's"<<z1+set_level<<","<<z2+set_level<<std::endl;
+		//std::cout<<"Z's"<<z1+set_level<<","<<z2+set_level<<std::endl;
 
 		// if(z1*z2>0)std::cout<<"Same sign\n";
 
@@ -786,7 +789,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 			y = Y;
 			// std::cout<<x<<",";
 			//std::cout<<y<<",";
-			std::cout<<x<<","<<y<<std::endl;
+			//std::cout<<x<<","<<y<<std::endl;
 			poiVals_[0] = X; poiVals_[1] = Y;
 			poiVars_[0]->setVal(X); poiVars_[1]->setVal(Y);
 			
@@ -805,27 +808,28 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 
 		
 		else {
-			std::cout<<"Disaster.\n";
+			std::cout<<"Something went wrong, aborting.\n";
+			break;
 			// alpha += 0.1;
 			//exit(0);
 		}
 		slope_old=slope;
-		t += 3;
+		//t += 3;
 
-		if((x-x0)<0)std::cout<<"While loop break\n";
+		//if((x-x0)<0)std::cout<<"While loop break\n";
 	}
-	std::cout<<"Cost:"<<cost<<"/"<<t<<std::endl;
+	std::cout<<"Points traced:"<<cost1<<std::endl;
 	
 	
-	/****************************************STARTING SCAN 2*********************************************************/
+	/****************************************Anticlockwise scan, lower semicircle*********************************************************/
 	//cost = 0;
 	slope_old = +999999999;
-	x = x_start-0.000001;
+	x = x_start-0.000001*step_y;
 	y = y_start;
 	poiVals_[0] = x;
 	poiVars_[0]->setVal(x);
-	
-	while((x-x0)<0){
+	std::cout<<"Starting anticlockwise scan in the lower semicircle region.\n";	
+	while(false){
 		slope = (y-y0)/(x-x0);
 		theta = atan(slope);
 		// std::cout<<"\n***********\ntheta "<<theta<<std::endl;
@@ -837,7 +841,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 		
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
-		   cost++;
+		   cost2++;
 		   deltaNLL_ = nll.getVal() - nll0;
 		   //(upLimit_likelihood<deltaNLL_)? (upLimit_likelihood=deltaNLL_):true;
            double qN = 2*(deltaNLL_);
@@ -859,7 +863,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 		
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
-		   cost++;
+		   cost2++;
 		   deltaNLL_ = nll.getVal() - nll0;
 		   //(upLimit_likelihood<deltaNLL_)? (upLimit_likelihood=deltaNLL_):true;
         	   double qN = 2*(deltaNLL_);
@@ -872,7 +876,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 		
 	
 		z2 = deltaNLL_- set_level;
-		std::cout<<"Z's"<<z1+set_level<<","<<z2+set_level<<std::endl;
+		//std::cout<<"Z's"<<z1+set_level<<","<<z2+set_level<<std::endl;
 
 		// if(z1*z2>0)std::cout<<"Same sign\n";
 
@@ -904,18 +908,58 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 
 		
 		else {
-			std::cout<<"Disaster.\n";
+			std::cout<<"Something went wrong, aborting.\n";
+			break;
 			// alpha += 0.1;
 			//exit(0);
 		}
 		slope_old=slope;
-		t += 3;
+		//t += 3;
 
-		if((x-x0)>0)std::cout<<"While loop break\n";
+		//if((x-x0)>0)std::cout<<"While loop break\n";
 	}
-	std::cout<<"Cost:"<<cost<<"/"<<t<<std::endl;
+	std::cout<<"Points traced:"<<cost2<<std::endl;
 	
-
+	/*SAMPLE BAD POINT*/
+	poiVals_[0] = 4; poiVals_[1] = 2.5;
+			poiVars_[0]->setVal(4); poiVars_[1]->setVal(2.5);
+			ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
+			if(ok){
+				deltaNLL_ = nll.getVal() - nll0;
+				double qN = 2*(deltaNLL_);
+           		double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+	   	    	for(unsigned int j=0; j<specifiedNuis_.size(); j++){
+					specifiedVals_[j]=specifiedVars_[j]->getVal();
+	   	    	}
+           	Combine::commitPoint(true,prob);
+           	}
+	
+	/*ENDS HERE*/
+	
+	/*STICHING*/
+	
+	double Xa = pmin[0], Ya = pmin[1];
+	std::cout<<Xa<<","<<Ya<<std::endl;
+	
+	while((Xa<pmax[0]) && (Ya<pmax[1])){
+	Xa += 0.1;
+	Ya += 0.1;
+	std::cout<<Xa<<","<<Ya<<std::endl;
+	poiVals_[0] = Xa; poiVals_[1] = Ya;
+	poiVars_[0]->setVal(Xa); poiVars_[1]->setVal(Ya);
+	//ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
+	//if(ok){
+		deltaNLL_ = 0;
+		double qN = 2*(deltaNLL_);
+    	double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+	   	for(unsigned int j=0; j<specifiedNuis_.size(); j++){
+			specifiedVals_[j]=specifiedVars_[j]->getVal();
+	   	}
+       	Combine::commitPoint(true,prob);
+    //}
+    }
+	
+	
 	
     }
 
