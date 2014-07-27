@@ -673,13 +673,13 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
     if (n==2){
 		
 	int cost=0;
-	double pi = 3.14159;
+	const double pi = 3.14159;
 	
-	double set_level = 2, old_level=0, level = 0;
+	double set_level = 1, old_level=0, level = 0;
 	double step_y = 0.1;
-	double x0 = poiVars_[0]->getVal(), y0 = poiVars_[1]->getVal();
+	const double x0 = poiVars_[0]->getVal(), y0 = poiVars_[1]->getVal();
 	double x = x0, y = y0;
-	double x_start, y_start;
+	
 	while(true){
 	
 		poiVals_[0] = x; poiVals_[1] = y;
@@ -710,31 +710,32 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 		
 	}
 	
-	x_start = x;
-	y_start = y;
+	const double x_start = x, y_start = y;
 
 	cost = 0;
-	double slope, slope_old, theta, l=0.25;
+	double slope, slope_old, theta, l=0.1;
 	double x1, y1, z1, x2, y2, z2, X, Y;
 	double alpha=pi/4;
 	int t=1;
+	std::cout<<"Starting point:"<<x_start<<","<<y_start<<std::endl;
+	std::cout<<"Centre:"<<x0<<","<<y0<<std::endl;	
 
-/****************************************STARTING SCAN*********************************************************/
+/****************************************STARTING SCAN  1*********************************************************/
 	slope_old = -999999999;
-	x = x_start+0.5;
+	x = x_start+0.000001;
 	y = y_start;
-	poiVals_[0] = x;
-	poiVars_[0]->setVal(x);
+	//poiVals_[0] = x;
+	//poiVars_[0]->setVal(x);
 	
 	while((x-x0)>0){
 		slope = (y-y0)/(x-x0);
 		theta = atan(slope);
-		// std::cout<<"\n***********\ntheta "<<theta<<std::endl;
+		std::cout<<"\n***********\n"<<std::endl;
 		x1 = x - l*cos(theta- alpha);
 		y1 = y - l*sin(theta-alpha);
 		poiVals_[0] = x1; poiVals_[1] = y1;
 		poiVars_[0]->setVal(x1); poiVars_[1]->setVal(y1);
-		
+		std::cout<<x1<<","<<y1<<std::endl;
 		
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
@@ -754,9 +755,9 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 
 		x2 = x + l*cos(theta+alpha);
 		y2 = y + l*sin(theta+ alpha);
-		
 		poiVals_[0] = x2; poiVals_[1] = y2;
 		poiVars_[0]->setVal(x2); poiVars_[1]->setVal(y2);
+		std::cout<<x2<<","<<y2<<std::endl;
 		
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
@@ -773,7 +774,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 		
 	
 		z2 = deltaNLL_- set_level;
-		std::cout<<"Z's"<<z1<<","<<z2<<std::endl;
+		std::cout<<"Z's"<<z1+set_level<<","<<z2+set_level<<std::endl;
 
 		// if(z1*z2>0)std::cout<<"Same sign\n";
 
@@ -784,7 +785,8 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 			x = X;
 			y = Y;
 			// std::cout<<x<<",";
-			std::cout<<y<<",";
+			//std::cout<<y<<",";
+			std::cout<<x<<","<<y<<std::endl;
 			poiVals_[0] = X; poiVals_[1] = Y;
 			poiVars_[0]->setVal(X); poiVars_[1]->setVal(Y);
 			
@@ -818,7 +820,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	/****************************************STARTING SCAN 2*********************************************************/
 	//cost = 0;
 	slope_old = +999999999;
-	x = x_start-0.5;
+	x = x_start-0.000001;
 	y = y_start;
 	poiVals_[0] = x;
 	poiVars_[0]->setVal(x);
@@ -870,7 +872,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 		
 	
 		z2 = deltaNLL_- set_level;
-		std::cout<<"Z's"<<z1<<","<<z2<<std::endl;
+		std::cout<<"Z's"<<z1+set_level<<","<<z2+set_level<<std::endl;
 
 		// if(z1*z2>0)std::cout<<"Same sign\n";
 
@@ -881,7 +883,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 			x = X;
 			y = Y;
 			// std::cout<<x<<",";
-			std::cout<<y<<",";
+			//std::cout<<y<<",";
 			poiVals_[0] = X; poiVals_[1] = Y;
 			poiVars_[0]->setVal(X); poiVars_[1]->setVal(Y);
 			ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
