@@ -681,7 +681,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	double x = x0, y = y0;
 	std::cout<<"Starting from ("<<x0<<","<<y0<<"), moving outwards to touch contour."<<std::endl;	
 		
-	while(false){
+	while(true){
 	
 		poiVals_[0] = x; poiVals_[1] = y;
 		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
@@ -730,7 +730,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	//poiVals_[0] = x;
 	//poiVars_[0]->setVal(x);
 	
-	while(false){
+	while((x-x0)>0){
 		slope = (y-y0)/(x-x0);
 		theta = atan(slope);
 		//std::cout<<"\n***********\n"<<std::endl;
@@ -829,7 +829,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 	poiVals_[0] = x;
 	poiVars_[0]->setVal(x);
 	std::cout<<"Starting anticlockwise scan in the lower semicircle region.\n";	
-	while(false){
+	while((x-x0)<0){
 		slope = (y-y0)/(x-x0);
 		theta = atan(slope);
 		// std::cout<<"\n***********\ntheta "<<theta<<std::endl;
@@ -890,16 +890,16 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 			//std::cout<<y<<",";
 			poiVals_[0] = X; poiVals_[1] = Y;
 			poiVars_[0]->setVal(X); poiVars_[1]->setVal(Y);
-			ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
-			if(ok){
-				deltaNLL_ = nll.getVal() - nll0;
-				double qN = 2*(deltaNLL_);
-           		double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
-	   	    	for(unsigned int j=0; j<specifiedNuis_.size(); j++){
-					specifiedVals_[j]=specifiedVars_[j]->getVal();
-	   	    	}
+			//ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
+			//if(ok){
+			deltaNLL_ = set_level;
+			double qN = 2*(deltaNLL_);
+           	double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+	   	    for(unsigned int j=0; j<specifiedNuis_.size(); j++){
+				specifiedVals_[j]=specifiedVars_[j]->getVal();
+	   	    }
            	Combine::commitPoint(true,prob);
-           	}
+           	//}
 			
 			// std::cout<<setw(3)<<"x: "<<setw(8)<<x<<","<<setw(8)<<y<<std::endl;
 			// std::cout<<setw(3)<<"x1: "<<setw(8)<<x1<<","<<setw(8)<<y1<<std::endl;
@@ -935,29 +935,6 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
            	}
 	
 	/*ENDS HERE*/
-	
-	/*STICHING*/
-	
-	double Xa = pmin[0], Ya = pmin[1];
-	std::cout<<Xa<<","<<Ya<<std::endl;
-	
-	while((Xa<pmax[0]) && (Ya<pmax[1])){
-	Xa += 0.1;
-	Ya += 0.1;
-	std::cout<<Xa<<","<<Ya<<std::endl;
-	poiVals_[0] = Xa; poiVals_[1] = Ya;
-	poiVars_[0]->setVal(Xa); poiVars_[1]->setVal(Ya);
-	//ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
-	//if(ok){
-		deltaNLL_ = 0;
-		double qN = 2*(deltaNLL_);
-    	double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
-	   	for(unsigned int j=0; j<specifiedNuis_.size(); j++){
-			specifiedVals_[j]=specifiedVars_[j]->getVal();
-	   	}
-       	Combine::commitPoint(true,prob);
-    //}
-    }
 	
 	
 	
