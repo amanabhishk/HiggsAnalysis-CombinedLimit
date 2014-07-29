@@ -793,7 +793,7 @@ void MultiDimFit::doRandomPoints(RooAbsReal &nll)
 			poiVals_[0] = X; poiVals_[1] = Y;
 			poiVars_[0]->setVal(X); poiVars_[1]->setVal(Y);
 			
-			deltaNLL_=0;
+			deltaNLL_=set_level;
 			double qN = 2*(deltaNLL_);
            	double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
 	   	    for(unsigned int j=0; j<specifiedNuis_.size(); j++){
