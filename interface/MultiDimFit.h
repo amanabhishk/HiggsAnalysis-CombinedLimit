@@ -45,6 +45,7 @@ protected:
   static bool loadedSnapshot_;
   static float maxDeltaNLLForProf_;
   static float plotPower_;
+  static double contour;
 
   static std::vector<std::string>  specifiedNuis_;
   static std::vector<RooRealVar *> specifiedVars_;
