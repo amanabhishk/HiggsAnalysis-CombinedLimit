@@ -710,7 +710,7 @@ void MultiDimFit::doContour2D(RooAbsReal &nll)
 void MultiDimFit::doStitch2D(RooAbsReal &nll)
 {
     unsigned int n = poi_.size();
-    //unsigned int sectors = 5;
+    unsigned int sectors = 4;
     if (n==2){
 	bool ok;
     	double nll0 = nll.getVal();
@@ -729,13 +729,16 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 	
 	
 	const double pi = 3.14159;
-	
+
 	float set_level = 1.15, old_level=0, level = 0; //LEVEL SHOULD BE SET BY THE USER (set_level)
-	double step_x= pow((pmax[0]-pmin[0])*(pmax[1]-pmin[1])/double(points_),0.5);
+	double step= pow((pmax[0]-pmin[0])*(pmax[1]-pmin[1])/double(points_),0.5);
 	const double x0 = poiVars_[0]->getVal(), y0 = poiVars_[1]->getVal(); //USER SPECIFIED, in case of problems
+     for(unsigned int u=0; u<sectors; u++){
 	double x = x0, y = y0;
 	std::cout<<"Starting from ("<<x0<<","<<y0<<"), moving outwards to touch contour."<<std::endl;	
 		
+	const double theta_min = u*2*pi/sectors, theta_max = (u+1)*2*pi/sectors;
+	std::cout<<"Scanning ("<<u<<"*(2"<<"/"<<sectors<<")pi,"<< u+1<<"*(2"<<"/"<<sectors<<")pi)\n";	
 	while(true){
 		poiVals_[0] = x; poiVals_[1] = y;
 		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
@@ -759,8 +762,8 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 			std::cout<<"Found the surface.\n";
 			break;
 		}
-		x += step_x;
-		//y -= step_y;
+		x += step*cos(theta_min);
+		y += step*sin(theta_min);
 		old_level=level;
 		
 	}
@@ -768,7 +771,7 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 	const double x_start = x, y_start = y;
 
 	int cost1=0;//, cost2=0;
-	double theta=atan2((y_start-y0),(x_start-x0))+pi, theta_old = -999999999, l=step_x;//USER SPECIFIED PROBE LENGTH SHOULD BE ADDED
+	double theta=-99999, theta_old = theta, l=step;//USER SPECIFIED PROBE LENGTH SHOULD BE ADDED
 	
 	double x1, y1, z1, x2, y2, z2, X, Y;
 	double alpha=pi/4;							//USER SPECIFIED PROBE ANGLE SHOULD BE ADDED. Remember to notify user where the angle is measured from.
@@ -779,16 +782,16 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 /****************************************Starting stitching*********************************************************/
 	x = x_start;
 	y = y_start;
-	
-	while(theta<2*pi){
+	std::cout<<theta_min<<" "<<theta<<" "<<theta_max<<std::endl;	
+	while(theta<theta_max){
 		theta = atan2(y-y0,x-x0);
 		if(theta<0) theta += 2*pi;
-		std::cout<<"*********\n"<<theta<<std::endl;
+		std::cout<<theta<<std::endl;
 		x1 = x - l*cos(theta- alpha);
 		y1 = y - l*sin(theta-alpha);
 		poiVals_[0] = x1; poiVals_[1] = y1;
 		poiVars_[0]->setVal(x1); poiVars_[1]->setVal(y1);
-		std::cout<<x1<<","<<y1<<std::endl;
+		//std::cout<<x1<<","<<y1<<std::endl;
 		
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
@@ -810,7 +813,7 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 		y2 = y + l*sin(theta+ alpha);
 		poiVals_[0] = x2; poiVals_[1] = y2;
 		poiVars_[0]->setVal(x2); poiVars_[1]->setVal(y2);
-		std::cout<<x2<<","<<y2<<std::endl;
+		//std::cout<<x2<<","<<y2<<std::endl;
 		
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
@@ -865,24 +868,9 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 		//if((x-x0)<0)std::cout<<"While loop break\n";
 	}
 	std::cout<<"Points traced:"<<cost1<<std::endl;
-	
-	/*SAMPLE BAD POINT*/
-	poiVals_[0] = 4; poiVals_[1] = 2.5;
-	poiVars_[0]->setVal(4); poiVars_[1]->setVal(2.5);
-	ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
-	if(ok){
-		deltaNLL_ = nll.getVal() - nll0;
-		double qN = 2*(deltaNLL_);
-        	double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
-	   	for(unsigned int j=0; j<specifiedNuis_.size(); j++){
-			specifiedVals_[j]=specifiedVars_[j]->getVal();
-		}
-        Combine::commitPoint(true,prob);
-        }
-	
-	/*ENDS HERE*/
-	
-	
+
+      }
+		
 	
     }
     else std::cout<<"Stitch2D works only in 2 dimensions.\n";
