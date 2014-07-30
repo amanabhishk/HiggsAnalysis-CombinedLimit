@@ -733,7 +733,7 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 	
 	const double pi = 3.14159;
 
-	double set_level = 1, old_level=0, level = 0; //LEVEL SHOULD BE SET BY THE USER (set_level)
+	double set_level = 1; //LEVEL SHOULD BE SET BY THE USER (set_level)
 	double step= pow((pmax[0]-pmin[0])*(pmax[1]-pmin[1])/double(points_),0.5);
 	const double x0 = poiVars_[0]->getVal(), y0 = poiVars_[1]->getVal(); //USER SPECIFIED, in case of problems
      for(unsigned int u=0; u<sectors; u++){
@@ -742,31 +742,64 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 		
 	const double theta_min = u*2*pi/sectors, theta_max = (u+1)*2*pi/sectors;
 	std::cout<<"Scanning ("<<u<<"*(2"<<"/"<<sectors<<")pi,"<< u+1<<"*(2"<<"/"<<sectors<<")pi)\n";	
-	while(true){
+	
+	/*Finding the edge on the line where the line intersects the bundary*/
+		double r=step, rmax, rmin=r, l1=-set_level, l2;
+		while(r*cos(theta_min)>pmin[0] && r*sin(theta_min)>pmin[1] && r*cos(theta_min)<pmax[0] && r*sin(theta_min)<pmax[1]) r+= step;
+		rmax=r;
+			
+		x = x0 + rmax*cos(theta_min);
+		y = y0 + rmax*sin(theta_min);
+		    
 		poiVals_[0] = x; poiVals_[1] = y;
 		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
-		//double temp = 0;
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
-		if (ok) {
-		   deltaNLL_ = nll.getVal() - nll0;
-        	   double qN = 2*(deltaNLL_);
-           	   double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
-	   	   for(unsigned int j=0; j<specifiedNuis_.size(); j++){
-			specifiedVals_[j]=specifiedVars_[j]->getVal();
-	   	   }
-           	   Combine::commitPoint(true,prob);
-        	}
-		
-		level = deltaNLL_;
-		if((old_level-set_level)*(level-set_level)<0){ 
-			std::cout<<"Found the surface.\n";
-			break;
+	 	if (ok) {
+		    deltaNLL_ = nll.getVal() - nll0;
+        	    double qN = 2*(deltaNLL_);
+           	    double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+	   	    for(unsigned int j=0; j<specifiedNuis_.size(); j++){
+		        specifiedVals_[j]=specifiedVars_[j]->getVal();
+	   	    }
+           	    Combine::commitPoint(true,prob);
+        	}	
+		l2 = deltaNLL_-set_level;
+		if(l2<0) {
+		    std::cout<<"Please change the range so that the contour is enclosed completely by it.\n";
 		}
-		x += step*cos(theta_min);
-		y += step*sin(theta_min);
-		old_level=level;
+		if(l1>0) {
+		   std::cout<<"Only positive values for contours accepted.\n";
+		} 
 		
-	}
+		while((rmax-rmin)>step){
+		    x = x0 + (rmax+rmin)*cos(theta_min)/2;
+		    y = y0 + (rmax+rmin)*sin(theta_min)/2;
+		    
+		    poiVals_[0] = x; poiVals_[1] = y;
+		    poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
+		    ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
+	 	    if (ok) {
+			deltaNLL_ = nll.getVal() - nll0;
+        		double qN = 2*(deltaNLL_);
+           		double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+	   		for(unsigned int j=0; j<specifiedNuis_.size(); j++){
+			    specifiedVals_[j]=specifiedVars_[j]->getVal();
+	   		}
+           		Combine::commitPoint(true,prob);
+        	    }
+		    if((deltaNLL_-set_level) < 0){
+			rmin = (rmax+rmin)/2;
+			l1 = deltaNLL_ - set_level;
+		    }
+		    else{
+			rmax = (rmax+rmin)/2;
+			l2 = deltaNLL_ - set_level;
+		    }
+		}
+			
+	
+
+
 	
 	const double x_start = x, y_start = y;
 
@@ -786,7 +819,7 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 	while(theta<theta_max){
 		theta = atan2(y-y0,x-x0);
 		if(theta<0) theta += 2*pi;
-		std::cout<<theta<<std::endl;
+		//std::cout<<theta<<std::endl;
 		x1 = x - l*cos(theta- alpha);
 		y1 = y - l*sin(theta-alpha);
 		poiVals_[0] = x1; poiVals_[1] = y1;
@@ -834,7 +867,6 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 		if(theta>theta_old){
 		   x = X;
 		   y = Y;
-		   //std::cout<<x<<","<<y<<std::endl;
 	  	   poiVals_[0] = X; poiVals_[1] = Y;
 		   poiVars_[0]->setVal(X); poiVars_[1]->setVal(Y);
 			
