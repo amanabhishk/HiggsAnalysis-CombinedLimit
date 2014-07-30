@@ -707,6 +707,9 @@ void MultiDimFit::doContour2D(RooAbsReal &nll)
     verbose++; // restore verbosity
 }
 
+
+
+
 void MultiDimFit::doStitch2D(RooAbsReal &nll)
 {
     unsigned int n = poi_.size();
@@ -730,7 +733,7 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 	
 	const double pi = 3.14159;
 
-	float set_level = 1.15, old_level=0, level = 0; //LEVEL SHOULD BE SET BY THE USER (set_level)
+	double set_level = 1, old_level=0, level = 0; //LEVEL SHOULD BE SET BY THE USER (set_level)
 	double step= pow((pmax[0]-pmin[0])*(pmax[1]-pmin[1])/double(points_),0.5);
 	const double x0 = poiVars_[0]->getVal(), y0 = poiVars_[1]->getVal(); //USER SPECIFIED, in case of problems
      for(unsigned int u=0; u<sectors; u++){
@@ -742,13 +745,11 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 	while(true){
 		poiVals_[0] = x; poiVals_[1] = y;
 		poiVars_[0]->setVal(x); poiVars_[1]->setVal(y);
-		double temp = 0;
+		//double temp = 0;
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
-		   //cost++;
-		   temp = nll.getVal() - nll0;
-		   //(upLimit_likelihood<deltaNLL_)? (upLimit_likelihood=deltaNLL_):true;
-        	   double qN = 2*(temp);
+		   deltaNLL_ = nll.getVal() - nll0;
+        	   double qN = 2*(deltaNLL_);
            	   double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
 	   	   for(unsigned int j=0; j<specifiedNuis_.size(); j++){
 			specifiedVals_[j]=specifiedVars_[j]->getVal();
@@ -756,8 +757,7 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
            	   Combine::commitPoint(true,prob);
         	}
 		
-		level = temp;
-		//std::cout<<y<<","<<level<<std::endl;
+		level = deltaNLL_;
 		if((old_level-set_level)*(level-set_level)<0){ 
 			std::cout<<"Found the surface.\n";
 			break;
@@ -770,7 +770,7 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 	
 	const double x_start = x, y_start = y;
 
-	int cost1=0;//, cost2=0;
+	int cost1=0;
 	double theta=-99999, theta_old = theta, l=step;//USER SPECIFIED PROBE LENGTH SHOULD BE ADDED
 	
 	double x1, y1, z1, x2, y2, z2, X, Y;
@@ -797,7 +797,6 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 		if (ok) {
 		   cost1++;
 		   deltaNLL_ = nll.getVal() - nll0;
-		   //(upLimit_likelihood<deltaNLL_)? (upLimit_likelihood=deltaNLL_):true;
            	   double qN = 2*(deltaNLL_);
            	   double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
 	   	   for(unsigned int j=0; j<specifiedNuis_.size(); j++){
@@ -819,7 +818,6 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 		if (ok) {
 		   cost1++;
 		   deltaNLL_ = nll.getVal() - nll0;
-		   //(upLimit_likelihood<deltaNLL_)? (upLimit_likelihood=deltaNLL_):true;
         	   double qN = 2*(deltaNLL_);
            	   double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
 	   	   for(unsigned int j=0; j<specifiedNuis_.size(); j++){
@@ -827,12 +825,8 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 	   	   }
            	   Combine::commitPoint(true,prob);
         	}
-		
 	
 		z2 = deltaNLL_- set_level;
-		//std::cout<<"Z's"<<z1+set_level<<","<<z2+set_level<<std::endl;
-
-		// if(z1*z2>0)std::cout<<"Same sign\n";
 
 		X = x1+(x2-x1)*z1/(z1-z2);
 		Y = y1 +(y2-y1)*z1/(z1-z2);
@@ -840,8 +834,6 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 		if(theta>theta_old){
 		   x = X;
 		   y = Y;
-		   // std::cout<<x<<",";
-		   //std::cout<<y<<",";
 		   //std::cout<<x<<","<<y<<std::endl;
 	  	   poiVals_[0] = X; poiVals_[1] = Y;
 		   poiVars_[0]->setVal(X); poiVars_[1]->setVal(Y);
@@ -853,19 +845,12 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 				specifiedVals_[j]=specifiedVars_[j]->getVal();
 	   	    }
            	   Combine::commitPoint(true,prob);
-			
-			// std::cout<<setw(3)<<"x: "<<setw(8)<<x<<","<<setw(8)<<y<<std::endl;
-			// std::cout<<setw(3)<<"x1: "<<setw(8)<<x1<<","<<setw(8)<<y1<<std::endl;
-			// std::cout<<setw(3)<<"x2: "<<setw(8)<<x2<<","<<setw(8)<<y2<<std::endl;
 		}
 
 		
 		else break;
 		
 		theta_old=theta;
-		//t += 3;
-
-		//if((x-x0)<0)std::cout<<"While loop break\n";
 	}
 	std::cout<<"Points traced:"<<cost1<<std::endl;
 
