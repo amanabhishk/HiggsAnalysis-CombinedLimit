@@ -24,7 +24,7 @@ public:
 protected:
   virtual bool runSpecific(RooWorkspace *w, RooStats::ModelConfig *mc_s, RooStats::ModelConfig *mc_b, RooAbsData &data, double &limit, double &limitErr, const double *hint);
 
-  enum Algo { None, Singles, Cross, Grid, RandomPoints, Contour2D, Stitch2D };
+  enum Algo { None, Singles, Cross, Grid, RandomPoints, Contour2D, Stitch2D, SmartScan };
   static Algo algo_;
 
   enum GridType { G1x1, G3x3 };
@@ -61,7 +61,7 @@ protected:
   void doRandomPoints(RooAbsReal &nll) ;
   void doContour2D(RooAbsReal &nll) ;
   void doStitch2D(RooAbsReal &nll) ;
-
+  void doSmartScan(RooAbsReal &nll);
   // utilities
   /// for each RooRealVar, set a range 'box' from the PL profiling all other parameters
   void doBox(RooAbsReal &nll, double cl, const char *name="box", bool commitPoints=true) ;

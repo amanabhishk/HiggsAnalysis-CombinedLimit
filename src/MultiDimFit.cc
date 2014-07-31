@@ -1,8 +1,6 @@
 #include "../interface/MultiDimFit.h"
 #include <stdexcept>
 #include <cmath>
-#pragma GCC diagnostic ignored "-Wuninitialized"
-
 
 #include "TMath.h"
 #include "RooArgSet.h"
@@ -87,6 +85,8 @@ void MultiDimFit::applyOptions(const boost::program_options::variables_map &vm)
         algo_ = Contour2D;
     } else if (algo == "stitch2d") {
         algo_ = Stitch2D;
+    } else if (algo == "smartscan") {
+	algo_ = SmartScan;
     } else throw std::invalid_argument(std::string("Unknown algorithm: "+algo));
     fastScan_ = (vm.count("fastScan") > 0);
     hasMaxDeltaNLLForProf_ = !vm["maxDeltaNLLForProf"].defaulted();
@@ -154,6 +154,7 @@ bool MultiDimFit::runSpecific(RooWorkspace *w, RooStats::ModelConfig *mc_s, RooS
         case RandomPoints: doRandomPoints(*nll); break;
         case Contour2D: doContour2D(*nll); break;
         case Stitch2D: doStitch2D(*nll); break;
+	case SmartScan: doSmartScan(*nll); break;
     }
     
     return true;
@@ -735,9 +736,9 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 	
 	const double pi = 3.14159;
 
-	double set_level = contour; //LEVEL SHOULD BE SET BY THE USER (set_level)
+	double set_level = contour; 
 	double step= pow((pmax[0]-pmin[0])*(pmax[1]-pmin[1])/double(points_),0.5);
-	const double x0 = poiVars_[0]->getVal(), y0 = poiVars_[1]->getVal(); //USER SPECIFIED, in case of problems
+	const double x0 = poiVars_[0]->getVal(), y0 = poiVars_[1]->getVal(); 
 	for(unsigned int u=0; u<sectors; u++){
  	    double x = x0, y = y0;
  	    std::cout<<"Job#"<<u+1<<"\n"<<"Starting from ("<<x0<<","<<y0<<"), moving outwards to touch contour."<<std::endl;	
@@ -801,7 +802,7 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
  	       
 
 		enough++;
- 	        if(enough>points_) {
+ 	        if(enough>points_/sectors) {
  	    	    std::cout<<"Bisection method to reach the contour starting from the interior point did not converge.\n";
  	    	    break;
  	        }
@@ -815,10 +816,10 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 
 	int cost1=0;
 	double theta=-99999, theta_old = theta;
-	double l=2.828427*pi*(rmax+rmin)/(points_);//USER SPECIFIED PROBE LENGTH SHOULD BE ADDED
+	double l=2.828427*pi*(rmax+rmin)/(points_);
 	
 	double x1, y1, z1, x2, y2, z2, X, Y;
-	double alpha=pi/4;		//USER SPECIFIED PROBE ANGLE SHOULD BE ADDED. Remember to notify user where the angle is measured from.
+	double alpha=pi/4;		
 	
 	std::cout<<"Touched countour at ("<<x_start<<","<<y_start<<")"<<std::endl;
 	std::cout<<"Probe length being used: "<<l<<". Decrease granularity to decrease probe length if this is too small."<<std::endl;
@@ -834,7 +835,6 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 		y1 = y - l*sin(theta-alpha);
 		poiVals_[0] = x1; poiVals_[1] = y1;
 		poiVars_[0]->setVal(x1); poiVars_[1]->setVal(y1);
-		//std::cout<<x1<<","<<y1<<std::endl;
 		
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
@@ -855,7 +855,6 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 		y2 = y + l*sin(theta+ alpha);
 		poiVals_[0] = x2; poiVals_[1] = y2;
 		poiVars_[0]->setVal(x2); poiVars_[1]->setVal(y2);
-		//std::cout<<x2<<","<<y2<<std::endl;
 		
 		ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true :minim.minimize(verbose-1);
 		if (ok) {
@@ -957,4 +956,10 @@ void MultiDimFit::doBox(RooAbsReal &nll, double cl, const char *name, bool commi
         xv->setConstant(false);
     }
     verbose++; // restore verbosity 
+}
+
+void MultiDimFit::doSmartScan(RooAbsReal &nll){
+	std::cout<<"Start working.\n";
+
+
 }
