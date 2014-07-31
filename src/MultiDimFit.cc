@@ -958,8 +958,79 @@ void MultiDimFit::doBox(RooAbsReal &nll, double cl, const char *name, bool commi
     verbose++; // restore verbosity 
 }
 
+
+
+
 void MultiDimFit::doSmartScan(RooAbsReal &nll){
-	std::cout<<"Start working.\n";
+    int n = poi_.size();
+    double nll0 = nll.getVal();
+    bool ok;
+
+    std::vector<double> p0(n), pmin(n), pmax(n);
+    for (int i = 0; i < n; ++i) {
+        p0[i] = poiVars_[i]->getVal();
+        pmin[i] = poiVars_[i]->getMin();
+        pmax[i] = poiVars_[i]->getMax();
+        poiVars_[i]->setConstant(true);
+    }
+
+    CascadeMinimizer minim(nll, CascadeMinimizer::Constrained);
+    minim.setStrategy(minimizerStrategy_);
+    std::auto_ptr<RooArgSet> params(nll.getParameters((const RooArgSet *)0));
+    RooArgSet snap; params->snapshot(snap);
+    
+
+    std::vector<double> origin(n);
+    std::cout<<"Starting point: ";
+    for(int q=0; q<n; q++) {
+	origin[q]=poiVars_[q]->getVal();
+	std::cout<<"|"<<origin[q]<<"|";
+    }
+    std::cout<<"\n";
+
+    double points = pow(points_,1/double(n));
+    std::cout<<"points in each dimension: "<<points<<std::endl;
+
+    std::vector<int> points_left(n), points_right(n); 
+    for(int q=0; q<n; q++){
+      points_left[q]= (int)((points)*(origin[q]-pmin[q])/(pmax[q]-pmin[q]));
+      points_right[q] = points- points_left[q]; 
+    }
+    
+    double x;
+    	
+    for(int q=0; q<n; q++){
+       for (int i = -points_left[q]; i < (points_right[q]+1); ++i) {
+         
+       /*plotting points on the right of the minimum*/
+	 if(i>0){
+         	if(plotPower_>1) x = origin[q]+(pmax[q]-origin[q])*pow(i/double(points_right[q]),plotPower_); 
+         	else x = pmax[q]+(origin[q]-pmax[q])*pow(i/double(points_right[q]),plotPower_);
+	 } 
+         
+        
+       /*plotting points on the left of the minimum*/
+	 else if(i<0){ 
+         	if(plotPower_>1) x = origin[q]+(pmin[q]-origin[q])*pow(-i/double(points_left[q]),plotPower_);
+         	else  x = pmin[q]+(origin[q]-pmin[q])*pow(-i/double(points_left[q]),plotPower_); 
+	 }
+	 
+	 else continue;
+       
+         *params = snap;
+         poiVals_[q] = x;
+         poiVars_[q]->setVal(x);
+         ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true : minim.minimize(verbose-1);
+         if (ok) {
+             deltaNLL_ = nll.getVal() - nll0;
+             double qN = 2*(deltaNLL_);
+             double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+             for(unsigned int j=0; j<specifiedNuis_.size(); j++){specifiedVals_[j]=specifiedVars_[j]->getVal(); }
+             Combine::commitPoint(true,prob);
+         }
+        }
+    }
+        
 
 
 }
