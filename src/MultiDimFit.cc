@@ -814,7 +814,8 @@ void MultiDimFit::doStitch2D(RooAbsReal &nll)
 	const double x_start = x0 + (rmax+rmin)*cos(theta_min)/2, y_start = y0 + (rmax+rmin)*sin(theta_min)/2;
 
 	int cost1=0;
-	double theta=-99999, theta_old = theta, l=step;//USER SPECIFIED PROBE LENGTH SHOULD BE ADDED
+	double theta=-99999, theta_old = theta;
+	double l=2.828427*pi*(rmax+rmin)/(points_);//USER SPECIFIED PROBE LENGTH SHOULD BE ADDED
 	
 	double x1, y1, z1, x2, y2, z2, X, Y;
 	double alpha=pi/4;		//USER SPECIFIED PROBE ANGLE SHOULD BE ADDED. Remember to notify user where the angle is measured from.
