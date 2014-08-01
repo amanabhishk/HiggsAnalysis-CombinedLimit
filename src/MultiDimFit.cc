@@ -21,6 +21,9 @@
 #include <Math/ProbFunc.h>
 
 bool next(std::vector<int>& indices,int n, const std::vector<int>& min, const std::vector<int>& max); 
+void print(const std::vector<int>& indices, int n);
+void print2(const std::vector<double>& indices, int n);
+
 using namespace RooStats;
 
 MultiDimFit::Algo MultiDimFit::algo_ = None;
@@ -996,15 +999,24 @@ void MultiDimFit::doSmartScan(RooAbsReal &nll){
     for(int q=0; q<n; q++){
       points_left[q]= (int)((points)*(origin[q]-pmin[q])/(pmax[q]-pmin[q]));
       points_right[q] = points- points_left[q]; 
-      index[n]=-points_left[q];
+      index[q]=-points_left[q];
     }
     
     std::vector<double> x(n);
-    	
+    std::cout<<"Begin with:\n";
+    print(index,n);
+    std::cout<<"After:\n";
+    int count=0;
     do{
+      count++;
+      print(index,n);
+      print2(x,n);
       for(int q=0; q<n; q++){   
        /*plotting points on the right of the minimum*/
+       std::cout<<"Point#:"<<count<<std::endl;
+	 
 	 if(index[q]>0){
+	 		std::cout<<"Plotted on the right.\n";
          	if(plotPower_>1) x[q] = origin[q]+(pmax[q]-origin[q])*pow(q/double(points_right[q]),plotPower_); 
          	else x[q] = pmax[q]+(origin[q]-pmax[q])*pow(q/double(points_right[q]),plotPower_);
 	 } 
@@ -1012,6 +1024,7 @@ void MultiDimFit::doSmartScan(RooAbsReal &nll){
         
        /*plotting points on the left of the minimum*/
 	 else if(index[q]<0){ 
+	 		std::cout<<"Plotted on the left.\n";
          	if(plotPower_>1) x[q] = origin[q]+(pmin[q]-origin[q])*pow(-q/double(points_left[q]),plotPower_);
          	else  x[q] = pmin[q]+(origin[q]-pmin[q])*pow(-q/double(points_left[q]),plotPower_); 
 	 }
@@ -1026,6 +1039,7 @@ void MultiDimFit::doSmartScan(RooAbsReal &nll){
       ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true : minim.minimize(verbose-1);
       if (ok) {
           deltaNLL_ = nll.getVal() - nll0;
+          //deltaNLL_ = 1;
           double qN = 2*(deltaNLL_);
           double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
           for(unsigned int j=0; j<specifiedNuis_.size(); j++){specifiedVals_[j]=specifiedVars_[j]->getVal(); }
@@ -1040,11 +1054,26 @@ void MultiDimFit::doSmartScan(RooAbsReal &nll){
 bool next(std::vector<int>& indices,int n, const std::vector<int>& min, const std::vector<int>& max){ 
     for (int i = n-1; i > -1; --i) {
         if (++indices[i] <= max[i]) {
-		return true;
+            //indices[i] += 1;
+            return true;
         }
         indices[i] = -min[i];
     }
-    return false;
+    return false; 
+ 
 }
 
+void print(const std::vector<int>& indices, int n) {
+    for (int i = 0; i <n; ++i) {
+        std::cout << indices[i] << ' ';
+    }
+    std::cout << '\n';
+}
+
+void print2(const std::vector<double>& indices, int n) {
+    for (int i = 0; i <n; ++i) {
+        std::cout << indices[i] << ' ';
+    }
+    std::cout << '\n';
+}
 
