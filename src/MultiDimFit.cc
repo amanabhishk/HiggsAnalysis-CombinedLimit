@@ -20,6 +20,7 @@
 #include <Math/QuantFuncMathCore.h>
 #include <Math/ProbFunc.h>
 
+bool next(std::vector<int>& indices,int n, const std::vector<int>& min, const std::vector<int>& max); 
 using namespace RooStats;
 
 MultiDimFit::Algo MultiDimFit::algo_ = None;
@@ -991,46 +992,59 @@ void MultiDimFit::doSmartScan(RooAbsReal &nll){
     double points = pow(points_,1/double(n));
     std::cout<<"points in each dimension: "<<points<<std::endl;
 
-    std::vector<int> points_left(n), points_right(n); 
+    std::vector<int> points_left(n), points_right(n), index(n); 
     for(int q=0; q<n; q++){
       points_left[q]= (int)((points)*(origin[q]-pmin[q])/(pmax[q]-pmin[q]));
       points_right[q] = points- points_left[q]; 
+      index[n]=-points_left[q];
     }
     
-    double x;
+    std::vector<double> x(n);
     	
-    for(int q=0; q<n; q++){
-       for (int i = -points_left[q]; i < (points_right[q]+1); ++i) {
-         
+    do{
+      for(int q=0; q<n; q++){   
        /*plotting points on the right of the minimum*/
-	 if(i>0){
-         	if(plotPower_>1) x = origin[q]+(pmax[q]-origin[q])*pow(i/double(points_right[q]),plotPower_); 
-         	else x = pmax[q]+(origin[q]-pmax[q])*pow(i/double(points_right[q]),plotPower_);
+	 if(index[q]>0){
+         	if(plotPower_>1) x[q] = origin[q]+(pmax[q]-origin[q])*pow(q/double(points_right[q]),plotPower_); 
+         	else x[q] = pmax[q]+(origin[q]-pmax[q])*pow(q/double(points_right[q]),plotPower_);
 	 } 
          
         
        /*plotting points on the left of the minimum*/
-	 else if(i<0){ 
-         	if(plotPower_>1) x = origin[q]+(pmin[q]-origin[q])*pow(-i/double(points_left[q]),plotPower_);
-         	else  x = pmin[q]+(origin[q]-pmin[q])*pow(-i/double(points_left[q]),plotPower_); 
+	 else if(index[q]<0){ 
+         	if(plotPower_>1) x[q] = origin[q]+(pmin[q]-origin[q])*pow(-q/double(points_left[q]),plotPower_);
+         	else  x[q] = pmin[q]+(origin[q]-pmin[q])*pow(-q/double(points_left[q]),plotPower_); 
 	 }
 	 
 	 else continue;
-       
+      }
+      for(int t=0; t<n; t++){
          *params = snap;
-         poiVals_[q] = x;
-         poiVars_[q]->setVal(x);
-         ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true : minim.minimize(verbose-1);
-         if (ok) {
-             deltaNLL_ = nll.getVal() - nll0;
-             double qN = 2*(deltaNLL_);
-             double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
-             for(unsigned int j=0; j<specifiedNuis_.size(); j++){specifiedVals_[j]=specifiedVars_[j]->getVal(); }
-             Combine::commitPoint(true,prob);
-         }
-        }
-    }
+         poiVals_[t] = x[t];
+         poiVars_[t]->setVal(x[t]);
+      }
+      ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true : minim.minimize(verbose-1);
+      if (ok) {
+          deltaNLL_ = nll.getVal() - nll0;
+          double qN = 2*(deltaNLL_);
+          double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+          for(unsigned int j=0; j<specifiedNuis_.size(); j++){specifiedVals_[j]=specifiedVars_[j]->getVal(); }
+          Combine::commitPoint(true,prob);
+      }
+    }while(next(index, n, points_left, points_right));
         
 
 
 }
+
+bool next(std::vector<int>& indices,int n, const std::vector<int>& min, const std::vector<int>& max){ 
+    for (int i = n-1; i > -1; --i) {
+        if (++indices[i] <= max[i]) {
+		return true;
+        }
+        indices[i] = -min[i];
+    }
+    return false;
+}
+
+
