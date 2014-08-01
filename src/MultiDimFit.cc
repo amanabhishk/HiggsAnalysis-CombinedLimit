@@ -962,12 +962,12 @@ void MultiDimFit::doBox(RooAbsReal &nll, double cl, const char *name, bool commi
 
 
 void MultiDimFit::doSmartScan(RooAbsReal &nll){
-    int n = poi_.size();
+    int D = poi_.size();
     double nll0 = nll.getVal();
     bool ok;
 
-    std::vector<double> p0(n), pmin(n), pmax(n);
-    for (int i = 0; i < n; ++i) {
+    std::vector<double> p0(D), pmin(D), pmax(D);
+    for (int i = 0; i < D; ++i) {
         p0[i] = poiVars_[i]->getVal();
         pmin[i] = poiVars_[i]->getMin();
         pmax[i] = poiVars_[i]->getMax();
@@ -980,51 +980,73 @@ void MultiDimFit::doSmartScan(RooAbsReal &nll){
     RooArgSet snap; params->snapshot(snap);
     
 
-    std::vector<double> origin(n);
+    std::vector<double> origin(D);
     std::cout<<"Starting point: ";
-    for(int q=0; q<n; q++) {
+    for(int q=0; q<D; q++) {
 	origin[q]=poiVars_[q]->getVal();
 	std::cout<<"|"<<origin[q]<<"|";
     }
     std::cout<<"\n";
 
-    double points = pow(points_,1/double(n));
+    int points = int(pow(points_,1/double(D)));
     std::cout<<"points in each dimension: "<<points<<std::endl;
 
-    std::vector<int> points_left(n), points_right(n); 
-    for(int q=0; q<n; q++){
+    /*calcluate points on each side*/
+    std::vector<int> points_left(D), points_right(D); 
+    for(int q=0; q<D; q++){
       points_left[q]= (int)((points)*(origin[q]-pmin[q])/(pmax[q]-pmin[q]));
       points_right[q] = points- points_left[q]; 
     }
+    /*make a single vector with all the ranges*/
+
+    std::vector<std::vector<int>> index_ranges;
+    for(int a=0; a<D; a++){
+      std::vector<int> fullrange(points);
+      int i=-points_left[a];
+      for(int k=0; k<points; k++){
+        fullrange[k]=i;
+	i++;
+      }
+      index_ranges.push_back(fullrange);
+
+    }
+
+    for(int x=0; x<D; x++){
+      for(int y=0; y<points; y++){
+        std::cout<<index_ranges[x][y]<<" ";
+      }
+      std::cout<<std::endl;
+    }
+    /*end*/
     
     double x;
-    	
-    for(int q=0; q<n; q++){
-       for (int i = -points_left[q]; i < (points_right[q]+1); ++i) {
-         
+    for(int i=0; i<pow(points,D); i++){
+      for(int j=1; j<=D; j++){
+        std::cout<<(i/int(pow(points,j-1))%points)<<" ";
+
        /*plotting points on the right of the minimum*/
-	 if(i>0){
-         	if(plotPower_>1) x = origin[q]+(pmax[q]-origin[q])*pow(i/double(points_right[q]),plotPower_); 
-         	else x = pmax[q]+(origin[q]-pmax[q])*pow(i/double(points_right[q]),plotPower_);
+	 if(index_ranges[j-1][(i/int(pow(points,j-1))%points)]>0){
+         	if(plotPower_>1) x = origin[j-1]+(pmax[j-1]-origin[j-1])*pow(index_ranges[j-1][(i/int(pow(points,j-1))%points)]/double(points_right[j-1]),plotPower_); 
+         	else x = pmax[j-1]+(origin[j-1]-pmax[j-1])*pow(index_ranges[j-1][(i/int(pow(points,j-1))%points)]/double(points_right[j-1]),plotPower_);
 	 } 
          
         
        /*plotting points on the left of the minimum*/
-	 else if(i<0){ 
-         	if(plotPower_>1) x = origin[q]+(pmin[q]-origin[q])*pow(-i/double(points_left[q]),plotPower_);
-         	else  x = pmin[q]+(origin[q]-pmin[q])*pow(-i/double(points_left[q]),plotPower_); 
+	 else if(index_ranges[j-1][(i/int(pow(points,j-1))%points)]<0){ 
+         	if(plotPower_>1) x = origin[j-1]+(pmin[j-1]-origin[j-1])*pow(-index_ranges[j-1][(i/int(pow(points,j-1))%points)]/double(points_left[j-1]),plotPower_);
+         	else  x = pmin[j-1]+(origin[j-1]-pmin[j-1])*pow(-index_ranges[j-1][(i/int(pow(points,j-1))%points)]/double(points_left[j-1]),plotPower_); 
 	 }
 	 
 	 else continue;
        
          *params = snap;
-         poiVals_[q] = x;
-         poiVars_[q]->setVal(x);
+         poiVals_[j-1] = x;
+         poiVars_[j-1]->setVal(x);
          ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true : minim.minimize(verbose-1);
          if (ok) {
              deltaNLL_ = nll.getVal() - nll0;
              double qN = 2*(deltaNLL_);
-             double prob = ROOT::Math::chisquared_cdf_c(qN, n+nOtherFloatingPoi_);
+             double prob = ROOT::Math::chisquared_cdf_c(qN, D+nOtherFloatingPoi_);
              for(unsigned int j=0; j<specifiedNuis_.size(); j++){specifiedVals_[j]=specifiedVars_[j]->getVal(); }
              Combine::commitPoint(true,prob);
          }
