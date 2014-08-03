@@ -977,7 +977,6 @@ void MultiDimFit::doSmartScan(RooAbsReal &nll){
     CascadeMinimizer minim(nll, CascadeMinimizer::Constrained);
     minim.setStrategy(minimizerStrategy_);
     std::auto_ptr<RooArgSet> params(nll.getParameters((const RooArgSet *)0));
-    RooArgSet snap; params->snapshot(snap);
     
 
     std::vector<double> origin(D);
@@ -1033,7 +1032,6 @@ void MultiDimFit::doSmartScan(RooAbsReal &nll){
        }
        
        for(int t=0; t<D; t++){
-         *params = snap;
          poiVals_[t] = x[t];
          poiVars_[t]->setVal(x[t]);
        }
