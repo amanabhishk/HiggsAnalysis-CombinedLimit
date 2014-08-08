@@ -1,5 +1,5 @@
 {
-        TFile *_file0 = TFile::Open("400points_3D.root");  // input file from combine
+        TFile *_file0 = TFile::Open("1D1000points.root");  // input file from combine
         gSystem->Load("libHiggsAnalysisCombinedLimit.so");
 
         TTree *tree = _file0->Get("limit");
@@ -15,7 +15,7 @@
         RooRealVar mh("MH","MH",zmin,zmax);
         RooRealVar rf("RF","RF",ymin,ymax);
 
-        RooSplineND *spline = new RooSplineND("spline","spline",RooArgList(rv,rf,mh),tree,"deltaNLL",0.4,"2*deltaNLL<200 && quantileExpected!=-1 && quantileExpected!=1"); // arguments are ... name, title, list of parameters, the TTree from combine, the name of the branch to interpolate (i.e f(x)), a tunable parameter for the "size" of the basis functions, cut string.
+        RooSplineND *spline = new RooSplineND("spline","spline",RooArgList(rv,rf),tree,"deltaNLL",0.5,"2*deltaNLL<200 && quantileExpected<0.99 && MH > 126.5"); // arguments are ... name, title, list of parameters, the TTree from combine, the name of the branch to interpolate (i.e f(x)), a tunable parameter for the "size" of the basis functions, cut string.
 
 
         // make a 2D hist
@@ -34,7 +34,7 @@
         }
 
         hist2d->SetContour(1000);
-        hist2d->SetMaximum(10);
+        hist2d->SetMaximum(20);
         hist2d->SetMinimum(0);
         hist2d->Draw("colz");
         TH2F * h68 = (TH2F*)hist2d->Clone();
@@ -44,6 +44,7 @@
         h68->SetContourLevel(1,2.3);
         h68->Draw("CONT3same");
 
+/*
         TH2F * h95 = (TH2F*)hist2d->Clone();
         h95->SetLineColor(1);
         h95->SetLineWidth(2);
@@ -51,7 +52,7 @@
         h95->SetContour(2);
         h95->SetContourLevel(1,6.18);
         h95->Draw("CONT3same");
-
+*/
         TFile *out = new TFile("RVRFScan_FineGrainHist_LowerRes.root","RECREATE");
         hist2d->SetName("h2d");
         hist2d->Write();
