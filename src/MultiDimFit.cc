@@ -1003,7 +1003,7 @@ void MultiDimFit::doSmartScan(RooAbsReal &nll){
       std::vector<int> fullrange(points);
       int i=-points_left[a];
       for(int k=0; k<points; k++){
-        fullrange[k]=i;
+	fullrange[k]=i;
 	i++;
       }
       index_ranges.push_back(fullrange);
@@ -1015,10 +1015,16 @@ void MultiDimFit::doSmartScan(RooAbsReal &nll){
     for(int i=0; i<pow(points,D); i++){
       for(int j=1; j<=D; j++){
 
+         for(int t=0; t<D; t++){
+	 std::cout<< index_ranges[j-1][t]<<" ";
+	 }
+	 std::cout<<std::endl;
+
        /*plotting points on the right of the minimum*/
 	 if(index_ranges[j-1][(i/int(pow(points,j-1))%points)]>0){
          	if(plotPower_>1) x[j-1] = origin[j-1]+(pmax[j-1]-origin[j-1])*pow(index_ranges[j-1][(i/int(pow(points,j-1))%points)]/double(points_right[j-1]),plotPower_); 
          	else x[j-1] = pmax[j-1]+(origin[j-1]-pmax[j-1])*pow(index_ranges[j-1][(i/int(pow(points,j-1))%points)]/double(points_right[j-1]),plotPower_);
+		std::cout<<"R("<<j<<") "<<x[j-1]<<" index: "<<(i/int(pow(points,j-1))%points)<<std::endl;
 	 } 
          
         
@@ -1026,15 +1032,23 @@ void MultiDimFit::doSmartScan(RooAbsReal &nll){
 	 else if(index_ranges[j-1][(i/int(pow(points,j-1))%points)]<0){ 
          	if(plotPower_>1) x[j-1] = origin[j-1]+(pmin[j-1]-origin[j-1])*pow(-index_ranges[j-1][(i/int(pow(points,j-1))%points)]/double(points_left[j-1]),plotPower_);
          	else  x[j-1] = pmin[j-1]+(origin[j-1]-pmin[j-1])*pow(-index_ranges[j-1][(i/int(pow(points,j-1))%points)]/double(points_left[j-1]),plotPower_); 
+		std::cout<<"L("<<j<<") "<<x[j-1]<<" index: "<<(i/int(pow(points,j-1))%points)<<std::endl;
+
 	 }
 	 
-	 else continue;
+	 else {
+	 	std::cout<<"M("<<j<<") "<<x[j-1]<<" index: "<<(i/int(pow(points,j-1))%points)<<std::endl;
+
+	 	continue;
+	      }
        }
        
        for(int t=0; t<D; t++){
          poiVals_[t] = x[t];
          poiVars_[t]->setVal(x[t]);
+	 std::cout<< x[t]<<" ";
        }
+       std::cout<<"\n--------------"<<std::endl;
        
        ok = fastScan_ || (hasMaxDeltaNLLForProf_ && (nll.getVal() - nll0) > maxDeltaNLLForProf_) ? true : minim.minimize(verbose-1);
        if (ok) {
