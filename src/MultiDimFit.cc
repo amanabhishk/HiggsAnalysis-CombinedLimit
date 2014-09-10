@@ -984,6 +984,7 @@ for (int i = 0; i < D; ++i)
 }
 CascadeMinimizer minim(nll, CascadeMinimizer::Constrained);
 minim.setStrategy(minimizerStrategy_);
+CloseCoutSentry sentry(verbose < 3);
 std::auto_ptr<RooArgSet> params(nll.getParameters((const RooArgSet *)0));
 std::vector<double> origin(D);
 std::cout<<"The grid will be focused around the minima at: (";

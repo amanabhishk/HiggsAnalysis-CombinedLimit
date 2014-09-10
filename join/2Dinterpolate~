@@ -1,0 +1,54 @@
+{
+        TFile *_file0 = TFile::Open("2D.root");  // input file from combine
+        gSystem->Load("libHiggsAnalysisCombinedLimit.so");
+
+        TTree *tree = _file0->Get("limit");
+
+        double xmin = -1;
+        double xmax = 3;
+        double ymin = -2;
+        double ymax = 5;
+
+        RooRealVar x("RV","RV",xmin,xmax);
+        RooRealVar y("RF","RF",ymin,ymax);
+
+        RooSplineND *spline = new RooSplineND("spline","spline",RooArgList(x,y),tree,"deltaNLL",0.1,"2*deltaNLL<200 && quantileExpected!=-1 && quantileExpected!=1"); // arguments are ... name, title, list of parameters, the TTree from combine, the name of the branch to interpolate (i.e f(x)), a tunable parameter for the "size" of the basis functions, cut string.
+
+
+        // make a 2D hist
+        TH1F *hist1d = new TH1F("hist","hist",300,xmin,xmax);
+        for ( int i = 0;i<300;i++){
+          for (int j =0 ; j < 300 ; j ++){
+                double xval = hist1d.GetXaxis().GetBinCenter(i+1);
+                double yval = hist1d.GetYaxis().GetBinCenter(j+1);
+                x.setVal(xval);
+                y.setVal(yval);
+                hist1d.SetBinContent(i+1,2*spline->getVal());
+          }
+        }
+
+        hist1d->SetContour(1000);
+        hist1d->SetMaximum(10);
+        hist1d->SetMinimum(0);
+        hist1d->Draw("colz");
+        TH1F * h68 = (TH1F*)hist1d->Clone();
+        h68->SetLineColor(1);
+        h68->SetLineWidth(2);
+        h68->SetContour(2);
+        h68->SetContourLevel(1,2.3);
+        h68->Draw("CONT3same");
+
+        TH1F * h95 = (TH1F*)hist1d->Clone();
+        h95->SetLineColor(1);
+        h95->SetLineWidth(2);
+        h95->SetLineStyle(2);
+        h95->SetContour(2);
+        h95->SetContourLevel(1,6.18);
+        h95->Draw("CONT3same");
+
+        TFile *out = new TFile("xyScan_FineGrainHist_LowerRes.root","RECREATE");
+        hist1d->SetName("h1d");
+        hist1d->Write();
+        out->Close();
+
+}
